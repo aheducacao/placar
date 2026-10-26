@@ -159,6 +159,17 @@
   .cmp .sep { grid-column: 1 / -1; border-top: 1px solid var(--line); }
   td .tg { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.4; word-break: break-word; }
 
+  /* Aliança: amarelo e preto */
+  #sec-alianca { --panel: #0b0b0b; --panel-2: #161616; --line: #3a3313; --roxo: #ffd21f; --laranja: #ffffff; --muted: #bdb48a;
+                 background: radial-gradient(700px 260px at 100% 0%, rgba(255, 210, 31, .14), transparent 70%), #0b0b0b; border-color: rgba(255, 210, 31, .35); }
+  #sec-alianca h2 { color: #ffd21f; }
+  #sec-alianca .etapa .br { background: rgba(255, 210, 31, .12); }
+  #sec-alianca .etapa.fim .br i { background: #ffffff; }
+  #sec-alianca .linhas b { color: #ffd21f; }
+  .vendas-split { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pill { font-size: 12px; border-radius: 999px; padding: 3px 10px; background: var(--panel); border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .pill b { color: var(--fg); font-family: var(--display); font-size: 15px; margin-right: 3px; }
+
   .rodape { font-size: 12px; color: var(--muted); line-height: 1.55; max-width: 75ch; }
   .vazio { color: var(--muted); font-size: 13px; }
 </style>
@@ -213,9 +224,9 @@
 
       <section class="card">
         <h2>Por produto</h2>
-        <p class="sub" id="sub-prod">Leads: entradas nos funis da Clint. Atendidos: conversas do time com pessoas desse produto (quem está em dois funis conta nos dois). Cadeiras: quantidade de ingressos/vagas nas vendas da Guru. Conversão: das pessoas que o time atendeu, quantas compraram (conversa com Felipe ou Letícia até 30 dias antes da compra). Vendas feitas direto no site, sem conversa, aparecem embaixo do número de vendas.</p>
+        <p class="sub" id="sub-prod">Leads: entradas nos funis da Clint. Atendidos: conversas do time com pessoas desse produto (quem está em dois funis conta nos dois). Cadeiras: quantidade de ingressos/vagas nas vendas da Guru. Conversão: das pessoas que o time atendeu, quantas compraram (conversa com Felipe ou Letícia até 30 dias antes da compra). Pelo time: compraram depois de conversar com o time. Direto no site: compraram sozinhos, sem conversa. Produtos online (AH Club e Palestras) não contam cadeira.</p>
         <div class="tab"><table>
-          <thead><tr><th>Produto</th><th>Leads</th><th><span class="l">Atendidos</span><span class="c">Atend.</span></th><th>Vendas</th><th><span class="l">Cadeiras</span><span class="c">Cad.</span></th><th><span class="l">Conversão</span><span class="c">Conv.</span></th><th><span class="l">Faturamento</span><span class="c">Fat.</span></th></tr></thead>
+          <thead><tr><th>Produto</th><th>Leads</th><th><span class="l">Atendidos</span><span class="c">Atend.</span></th><th>Vendas</th><th><span class="l">Pelo time</span><span class="c">Time</span></th><th><span class="l">Direto no site</span><span class="c">Site</span></th><th><span class="l">Cadeiras</span><span class="c">Cad.</span></th><th><span class="l">Conversão</span><span class="c">Conv.</span></th><th><span class="l">Faturamento</span><span class="c">Fat.</span></th></tr></thead>
           <tbody id="t-prod"></tbody>
         </table></div>
       </section>
@@ -347,7 +358,7 @@
     linhas.forEach((x) => {
       fat += x.v; n += x.n; r += x.r; rv += x.rv;
       const p = prod[x.p] = prod[x.p] || { produto: x.p, leads: null, atendidos: null, vendas: 0, cadeiras: 0, faturamento: 0 };
-      p.vendas += x.n; p.cadeiras += x.q || (x.n ? x.n : 0); p.faturamento += x.v;
+      p.vendas += x.n; p.cadeiras = /club|palestras/i.test(x.p) ? null : p.cadeiras + (x.q || x.n || 0); p.faturamento += x.v;
       if (x.n) { const f = FORMA[x.m] || 'Outro'; const g = pag[f] = pag[f] || { forma: f, vendas: 0, valor: 0 }; g.vendas += x.n; g.valor += x.v; }
     });
     return { livre: true, de: a, ate: b, faturamento: fat, vendas: n, ticket: n ? fat / n : 0, reembolsos: r, reembolsos_valor: rv,
@@ -368,7 +379,9 @@
     $('#k-per').textContent = (d.de === d.ate ? fmtD(d.de) : fmtD(d.de) + ' a ' + fmtD(d.ate)) + ' · Guru' + (d.extra_alianca ? ' + ' + brl0.format(d.extra_alianca) + ' da Aliança na Clint' : '');
     $('#k-fat').textContent = brl.format(d.faturamento);
     $('#k-vendas').textContent = int.format(d.vendas);
-    $('#k-reemb').textContent = d.reembolsos ? int.format(d.reembolsos) + (d.reembolsos === 1 ? ' reembolso' : ' reembolsos') + ' (' + brl.format(d.reembolsos_valor) + ')' : 'compras aprovadas';
+    const somaP = (k) => (d.produtos || []).filter((x) => x.fonte !== 'clint').reduce((s, x) => s + (x[k] || 0), 0);
+    const split = !d.livre && (somaP('com_time') || somaP('direto')) ? int.format(somaP('com_time')) + ' pelo time · ' + int.format(somaP('direto')) + ' direto no site' : '';
+    $('#k-reemb').textContent = split ? split + (d.reembolsos ? ' · ' + d.reembolsos + (d.reembolsos === 1 ? ' reembolso' : ' reembolsos') : '') : d.reembolsos ? int.format(d.reembolsos) + (d.reembolsos === 1 ? ' reembolso' : ' reembolsos') + ' (' + brl.format(d.reembolsos_valor) + ')' : 'compras aprovadas';
     $('#k-ticket').textContent = d.vendas ? brl0.format(d.ticket) : '—';
     const tp = topoDe(d.de, d.ate, d.livre ? null : P);
     const novosAC = tp ? tp.novos : d.leads_active;
@@ -386,14 +399,11 @@
       if (ok && x.atendidos) td.append(el('small', 'sub2', int.format(x.com_time || 0) + ' de ' + int.format(x.atendidos)));
       return td;
     };
-    const vcel = (x) => {
-      const td = cel(x.vendas);
-      if (!d.livre && x.direto) td.append(el('small', 'sub2', int.format(x.direto) + ' direto no site'));
-      return td;
-    };
+    const vcel = (x) => cel(x.vendas);
+    const tcel = (v) => (d.livre ? el('td', 'n zero', '—') : cel(v || 0));
     const rows = d.produtos.map((x) => {
       const nomeP = el('td', '', x.produto); if (x.fonte === 'clint') nomeP.append(el('small', 'muted', ' · vendas da Clint'));
-      const tr = el('tr'); tr.append(nomeP, cel(x.leads), cel(x.atendidos), vcel(x), cel(x.cadeiras), pcel(x));
+      const tr = el('tr'); tr.append(nomeP, cel(x.leads), cel(x.atendidos), vcel(x), tcel(x.com_time), tcel(x.direto), cel(x.cadeiras), pcel(x));
       const td = el('td', 'n' + (x.faturamento ? '' : ' zero')); const w = el('div', 'fat');
       if (x.faturamento) { const bar = el('i'); bar.style.width = Math.round(80 * x.faturamento / max) + 'px'; w.append(bar); }
       w.append(document.createTextNode(fmtFat(x.faturamento))); td.append(w); tr.append(td); return tr;
@@ -403,10 +413,10 @@
       const tot = el('tr', 'total');
       const L = soma('leads'), A = soma('atendidos');
       const CT = soma('com_time');
-      tot.append(el('td', '', 'Total'), el('td', 'n', d.livre ? '—' : int.format(L)), el('td', 'n', d.livre ? '—' : int.format(A)), vcel({ vendas: soma('vendas'), direto: soma('direto') }), el('td', 'n', int.format(soma('cadeiras'))),
+      tot.append(el('td', '', 'Total'), el('td', 'n', d.livre ? '—' : int.format(L)), el('td', 'n', d.livre ? '—' : int.format(A)), vcel({ vendas: soma('vendas') }), tcel(soma('com_time')), tcel(soma('direto')), el('td', 'n', int.format(soma('cadeiras'))),
         pcel({ conversao: A ? Math.round(1000 * CT / A) / 10 : null, com_time: CT, atendidos: A }), el('td', 'n', fmtFat(soma('faturamento'))));
       tb.replaceChildren(...rows, tot);
-    } else { const tr = el('tr'); const td = el('td', 'vazio', 'Nada no período.'); td.colSpan = 7; tr.append(td); tb.replaceChildren(tr); }
+    } else { const tr = el('tr'); const td = el('td', 'vazio', 'Nada no período.'); td.colSpan = 9; tr.append(td); tb.replaceChildren(tr); }
 
     if (!d.livre) $('#equipe').replaceChildren(...d.equipe.map((v) => {
       const c = el('div', 'pessoa'); c.append(el('h3', '', v.nome));
@@ -452,8 +462,11 @@
       const res = el('div', 'res');
       const pv = (num, txt, cls) => { const s = el('span'); s.append(el('b', cls || '', num), document.createTextNode(txt)); res.append(s); };
       pv(int.format(x.vendas), x.vendas === 1 ? ' venda' : ' vendas');
-      pv(int.format(x.cadeiras), x.cadeiras === 1 ? ' cadeira' : ' cadeiras');
+      if (x.cadeiras != null) pv(int.format(x.cadeiras), x.cadeiras === 1 ? ' cadeira' : ' cadeiras');
       pv(brl0.format(x.faturamento), '', 'lj');
+      const sp = el('div', 'vendas-split');
+      const pill = (n, t) => { const e = el('span', 'pill'); e.append(el('b', '', int.format(n || 0)), document.createTextNode(t)); sp.append(e); };
+      pill(x.com_time, ' pelo time'); pill(x.direto, ' direto no site');
       const lista = [
         { nome: 'Leads', v: x.leads }, { nome: 'Conversas', v: x.atendidos }, { nome: 'Responderam', v: x.responderam },
         { nome: 'Aguardando compra', v: x.aguardando }, { nome: 'Checkout iniciado', v: x.checkout }, { nome: 'Vendas', v: x.vendas, fim: true },
@@ -462,8 +475,7 @@
       const cv = el('p', 'conv');
       if (x.conversao != null) cv.append(document.createTextNode('Conversão: '), el('b', '', pct(x.conversao)), document.createTextNode(' · ' + int.format(x.com_time || 0) + ' dos ' + int.format(x.atendidos) + ' atendidos compraram'));
       else cv.append(document.createTextNode('Conversão: sem atendimento do time na Clint'));
-      if (x.direto) cv.append(document.createTextNode(' · ' + int.format(x.direto) + (x.direto === 1 ? ' venda direto no site' : ' vendas direto no site')));
-      c.append(res, et, cv); return c;
+      c.append(res, sp, et, cv); return c;
     }));
   }
 

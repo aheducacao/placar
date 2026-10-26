@@ -123,6 +123,7 @@ def produto(nome, clint=False):
     return "Outros"
 
 
+ONLINE = {"AH Club", "AH Summit Palestras"}  # produtos online não têm cadeira
 FOCO = ["AH Gestão", "Formação de Vendedor", "AH Club", "AH Summit Palestras"]
 CHECKOUT = ("abandono", "compras em aberto", "cartão recusado", "cartao recusado", "compras expiradas")
 NAO_LEAD = ("compras", "assinaturas", "cartão recusado", "cartao recusado", "reembolso", "participantes",
@@ -239,12 +240,14 @@ def montar():
         if por_prod.get("Aliança"):
             por_prod["Aliança"]["com_time"] = por_prod["Aliança"]["vendas"]  # Aliança só vende por sessão com o time
         for x in por_prod.values():
+            if x["produto"] in ONLINE:
+                x["cadeiras"] = None
             x["com_time"] = min(x.get("com_time", 0), x["vendas"]) if x["vendas"] else x.get("com_time", 0)
             x["direto"] = max(0, x["vendas"] - x.get("com_time", 0))
             x["conversao"] = round(100 * x["com_time"] / x["atendidos"], 1) if x["atendidos"] else None
         for fx in foco:
             src = por_prod.get(fx["produto"]) or {}
-            fx.update({k: src.get(k) for k in ("com_time", "direto", "conversao")})
+            fx.update({k: src.get(k) for k in ("com_time", "direto", "conversao", "cadeiras")})
         out["periodos"][p] = {
             "rotulo": ROTULO[p], "de": a, "ate": b,
             "faturamento": round(fat, 2), "vendas": len(vs),
@@ -288,7 +291,8 @@ NAO_ENTRADA = re.compile(
     r"|^member_"                                                               # entrada/saída/importação de membros
     r"|^compra-aprovada|^comprou|^compradores|cancelad"                        # quem já comprou ou cancelou
     r"|data de importa|c[oó]digo fonte|tag fantasma|disparo crm|check-in"      # importações e listas internas
-    r"|^mentorandos|^leads-presentes|ja-faz-um-tempo|nunca-acessou|l2quente", re.I)
+    r"|^mentorandos|^leads-presentes|ja-faz-um-tempo|nunca-acessou|l2quente"
+    r"|cortesia", re.I)                                                         # ações pontuais já encerradas
 
 
 def barulho(nome):
