@@ -112,6 +112,17 @@
   .linhas div:first-child { border-top: 0; padding-top: 0; }
   .linhas b { font-family: var(--display); font-size: 22px; font-weight: 600; }
 
+  .mini { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .mini > div { background: var(--panel-2); padding: 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .mini span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .mini b { font-family: var(--display); font-size: clamp(26px, 3.4vw, 34px); font-weight: 600; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .mini small { font-size: 12px; color: var(--muted); }
+  .mini .dest b { color: var(--laranja); }
+  @media (max-width: 700px) { .mini { grid-template-columns: repeat(2, 1fr); } }
+  td.tag { font-size: 13px; word-break: break-word; }
+  .cab { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .cab .muted { font-size: 12px; }
+
   .rodape { font-size: 12px; color: var(--muted); line-height: 1.55; max-width: 75ch; }
   .vazio { color: var(--muted); font-size: 13px; }
 </style>
@@ -162,7 +173,7 @@
         <div><span class="rot">Atendidos</span><span class="val" id="k-atend">—</span><span class="nota" id="k-atend-n">conversas do time</span></div>
       </section>
 
-      <p class="aviso" id="aviso-livre" hidden>Nas datas escolhidas aparecem os números de vendas, que vêm da Guru dia a dia. Leads, atendimento e e-mails ficam nos períodos prontos (Hoje, Ontem, 7 dias, Semana passada e Este mês).</p>
+      <p class="aviso" id="aviso-livre" hidden>Nas datas escolhidas aparecem as vendas da Guru e os leads do Active dia a dia. Atendimento, leads da Clint, passagem para o comercial e e-mails ficam nos períodos prontos (Hoje, Ontem, 7 dias, Semana passada e Este mês).</p>
 
       <section class="card">
         <h2>Por produto</h2>
@@ -184,12 +195,34 @@
         <div class="vend" id="equipe"></div>
       </section>
 
+      <section class="card" id="sec-active">
+        <div class="cab"><h2>Leads do Active Campaign</h2><span class="muted" id="ac-base"></span></div>
+        <p class="sub">Todo mundo que ganhou uma tag no período (formulário, botão, pesquisa, lista de interesse...). Não conta tag automática de engajamento nem progresso de aula.</p>
+        <div class="mini">
+          <div class="dest"><span>Pessoas que entraram</span><b id="ac-pess">—</b><small id="ac-entr">—</small></div>
+          <div><span>Novas na base</span><b id="ac-novos">—</b><small>primeira vez no Active</small></div>
+          <div><span>Já eram da base</span><b id="ac-ja">—</b><small>voltaram por outra porta</small></div>
+          <div><span>Chegaram na Clint</span><b id="ac-clint">—</b><small id="ac-clint-n">com negócio aberto no período</small></div>
+        </div>
+        <p class="aviso" id="ac-aviso" hidden></p>
+      </section>
+
       <div class="grade">
-        <section class="card"><h2>Forma de pagamento</h2><div class="linhas" id="pagamentos"></div></section>
-        <section class="card" id="sec-emails"><h2>E-mails do período</h2><div class="linhas" id="emails"></div></section>
+        <section class="card"><h2>Por tag de entrada</h2>
+          <div class="tab"><table>
+            <thead><tr><th>Tag</th><th>Pessoas</th><th>Novas</th></tr></thead>
+            <tbody id="t-tags"></tbody>
+          </table></div>
+        </section>
+        <section class="card"><h2 id="t-graf-ac">Pessoas que entraram por dia</h2><div class="grafico" id="grafico-ac"></div></section>
       </div>
 
-      <p class="rodape">Vendas e faturamento vêm direto da Guru, pela data de aprovação (o mesmo critério do painel da Guru); reembolsos aparecem à parte. Leads e e-mails vêm do Active Campaign; atendimento e leads por produto, da Clint. Horários de Brasília.</p>
+      <div class="grade">
+        <section class="card" id="sec-emails"><h2>E-mails do período</h2><div class="linhas" id="emails"></div></section>
+        <section class="card"><h2>Forma de pagamento</h2><div class="linhas" id="pagamentos"></div></section>
+      </div>
+
+      <p class="rodape">Vendas e faturamento vêm direto da Guru, pela data de aprovação (o mesmo critério do painel da Guru); reembolsos aparecem à parte. Leads por tag, contatos novos e e-mails vêm do Active Campaign; atendimento, leads por produto e a passagem para o comercial, da Clint. Horários de Brasília.</p>
     </div>
   </main>
 </div>
@@ -283,9 +316,11 @@
     $('#k-vendas').textContent = int.format(d.vendas);
     $('#k-reemb').textContent = d.reembolsos ? int.format(d.reembolsos) + (d.reembolsos === 1 ? ' reembolso' : ' reembolsos') + ' (' + brl.format(d.reembolsos_valor) + ')' : 'compras aprovadas';
     $('#k-ticket').textContent = d.vendas ? brl0.format(d.ticket) : '—';
-    $('#k-leads').textContent = d.leads_active == null ? '—' : int.format(d.leads_active);
+    const tp = topoDe(d.de, d.ate, d.livre ? null : P);
+    const novosAC = tp ? tp.novos : d.leads_active;
+    $('#k-leads').textContent = novosAC == null ? '—' : int.format(novosAC);
     $('#k-atend').textContent = d.atendidos == null ? '—' : int.format(d.atendidos);
-    $('#k-leads-n').textContent = d.livre ? 'nos períodos prontos' : 'contatos novos no Active';
+    $('#k-leads-n').textContent = novosAC == null ? 'nos períodos prontos' : 'contatos novos no Active';
     $('#k-atend-n').textContent = d.livre ? 'nos períodos prontos' : 'conversas do time';
 
     const tb = $('#t-prod');
@@ -321,7 +356,71 @@
       const linhas = [['Envios', int.format(em.envios)], ['Abertura', pct(em.abertura)], ['Cliques', int.format(em.cliques) + ' (' + pct(em.clique) + ')'], ['Descadastros', int.format(em.descadastros)]];
       $('#emails').replaceChildren(...linhas.map(([a, b]) => { const r = el('div'); r.append(el('span', '', a), el('b', '', b)); return r; }));
     }
-    grafico(d);
+    grafico($('#grafico'), serieDe(d), (x) => x.faturamento, (x) => [document.createTextNode(x.nome + ' · '), el('b', '', brl0.format(x.faturamento)), document.createTextNode(' · ' + x.vendas + (x.vendas === 1 ? ' venda' : ' vendas'))]);
+    desenharTopo(d, tp);
+  }
+
+  // ---------- Leads do Active ----------
+  const DIA = 864e5;
+  const dataDe = (ini, off) => new Date(Date.parse(ini + 'T12:00:00Z') + off * DIA).toISOString().slice(0, 10);
+  const offDe = (ini, s) => Math.round((Date.parse(s + 'T12:00:00Z') - Date.parse(ini + 'T12:00:00Z')) / DIA);
+  function topoDe(a, b, preset) {
+    const T = DADOS.topo; if (!T) return null;
+    const oa = offDe(T.inicio, a), ob = offDe(T.inicio, b);
+    const novosSet = new Set(T.novos.filter((n) => n[0] >= oa && n[0] <= ob).map((n) => n[1]));
+    const pess = new Set(), porTag = {}, porDia = {};
+    let entradas = 0;
+    T.linhas.forEach(([o, t, c]) => {
+      if (o < oa || o > ob) return;
+      entradas++; pess.add(c);
+      (porTag[t] = porTag[t] || new Set()).add(c);
+      (porDia[o] = porDia[o] || new Set()).add(c);
+    });
+    let ja = 0; pess.forEach((c) => { if (!novosSet.has(c)) ja++; });
+    const tags = Object.entries(porTag).map(([t, set]) => {
+      let n = 0; set.forEach((c) => { if (novosSet.has(c)) n++; });
+      return { nome: T.tags[t], pessoas: set.size, novas: n };
+    }).sort((x, y) => y.pessoas - x.pessoas || x.nome.localeCompare(y.nome));
+    return { a, b, oa, ob, pessoas: pess.size, entradas, novos: novosSet.size, ja, tags, porDia,
+             passagem: preset && T.passagem ? T.passagem[preset] : null, antes: a < T.inicio, inicio: T.inicio, base: T.base_ativa };
+  }
+
+  function desenharTopo(d, tp) {
+    $('#sec-active').hidden = !tp;
+    $('#sec-active').nextElementSibling.hidden = !tp;
+    if (!tp) return;
+    $('#ac-base').textContent = tp.base ? 'Base ativa hoje: ' + int.format(tp.base) + ' contatos' : '';
+    $('#ac-pess').textContent = int.format(tp.pessoas);
+    $('#ac-entr').textContent = int.format(tp.entradas) + (tp.entradas === 1 ? ' tag aplicada' : ' tags aplicadas');
+    $('#ac-novos').textContent = int.format(tp.novos);
+    $('#ac-ja').textContent = int.format(tp.ja);
+    const ps = tp.passagem;
+    $('#ac-clint').textContent = ps ? int.format(ps.na_clint) : '—';
+    $('#ac-clint-n').textContent = ps ? (ps.pessoas ? Math.round(100 * ps.na_clint / ps.pessoas) + '% de quem entrou' : 'com negócio aberto no período') : 'nos períodos prontos';
+    const av = $('#ac-aviso');
+    av.hidden = !tp.antes; av.textContent = tp.antes ? 'Os leads do Active estão guardados a partir de ' + fmtD(tp.inicio) + '. Antes disso o placar mostra só as vendas.' : '';
+
+    const cel = (v) => el('td', 'n' + (v ? '' : ' zero'), int.format(v));
+    const rows = tp.tags.map((x) => { const tr = el('tr'); tr.append(el('td', 'tag', x.nome), cel(x.pessoas), cel(x.novas)); return tr; });
+    if (!rows.length) { const tr = el('tr'); const td = el('td', 'vazio', 'Ninguém ganhou tag de entrada no período.'); td.colSpan = 3; tr.append(td); rows.push(tr); }
+    $('#t-tags').replaceChildren(...rows);
+
+    // gráfico: dia a dia (até 62 dias), senão por mês. Nos períodos curtos mostra o mês inteiro.
+    let oa = tp.oa, ob = tp.ob;
+    if (!d.livre && ob - oa < 27) { oa = offDe(tp.inicio, DADOS.periodos.mes.de); ob = offDe(tp.inicio, DADOS.periodos.hoje.ate); }
+    const T = DADOS.topo, porDia = {};
+    T.linhas.forEach(([o, t, c]) => { if (o >= oa && o <= ob) (porDia[o] = porDia[o] || new Set()).add(c); });
+    let s = [];
+    if (ob - oa <= 61) {
+      $('#t-graf-ac').textContent = d.livre ? 'Pessoas que entraram por dia' : 'Pessoas que entraram por dia no mês';
+      for (let o = Math.max(0, oa); o <= ob; o++) { const ds = dataDe(T.inicio, o); s.push({ eixo: +ds.slice(8, 10), nome: fmtD(ds), v: (porDia[o] || new Set()).size }); }
+    } else {
+      $('#t-graf-ac').textContent = 'Pessoas que entraram por mês';
+      const m = {};
+      Object.entries(porDia).forEach(([o, set]) => { const k = dataDe(T.inicio, +o).slice(0, 7); (m[k] = m[k] || new Set()); set.forEach((c) => m[k].add(c)); });
+      for (let o = Math.max(0, oa); o <= ob; o++) { const k = dataDe(T.inicio, o).slice(0, 7); if (!s.length || s[s.length - 1].k !== k) s.push({ k, eixo: MESES[+k.slice(5, 7) - 1], nome: MESES[+k.slice(5, 7) - 1] + '/' + k.slice(2, 4), v: (m[k] || new Set()).size }); }
+    }
+    grafico($('#grafico-ac'), s, (x) => x.v, (x) => [document.createTextNode(x.nome + ' · '), el('b', '', int.format(x.v)), document.createTextNode(x.v === 1 ? ' pessoa' : ' pessoas')]);
   }
 
   function serieDe(d) {
@@ -338,11 +437,9 @@
     return Object.entries(meses).map(([m, x]) => ({ eixo: MESES[+m.slice(5, 7) - 1], nome: MESES[+m.slice(5, 7) - 1] + '/' + m.slice(2, 4), ...x }));
   }
 
-  function grafico(d) {
-    const box = $('#grafico');
-    const s = serieDe(d);
+  function grafico(box, s, val, dicaDe) {
     const W = Math.max(300, box.clientWidth || 600), H = 220, m = { t: 14, r: 8, b: 26, l: 8 };
-    const max = Math.max(1, ...s.map((x) => x.faturamento));
+    const max = Math.max(1, ...s.map(val));
     const bw = (W - m.l - m.r) / Math.max(1, s.length);
     const NS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', '100%');
@@ -352,12 +449,12 @@
     const COR = '#8b5cff', COR_H = '#ff8a2a';
     const passo = s.length <= 12 ? 1 : Math.ceil(s.length / 8);
     s.forEach((x, i) => {
-      const h = x.faturamento ? Math.max(2, (H - m.t - m.b) * x.faturamento / max) : 0;
+      const v = val(x), h = v ? Math.max(2, (H - m.t - m.b) * v / max) : 0;
       const w = Math.max(2, Math.min(bw * 0.64, 48)), xx = m.l + i * bw + (bw - w) / 2;
-      const r = mk('rect', { x: xx, y: H - m.b - h, width: w, height: h, rx: Math.min(4, w / 2), fill: x.faturamento ? COR : 'none' });
+      const r = mk('rect', { x: xx, y: H - m.b - h, width: w, height: h, rx: Math.min(4, w / 2), fill: v ? COR : 'none' });
       const hit = mk('rect', { x: m.l + i * bw, y: m.t, width: bw, height: H - m.t - m.b, fill: 'transparent' });
-      hit.addEventListener('mouseenter', () => { dica.hidden = false; dica.style.left = Math.min(90, Math.max(10, (xx + w / 2) / W * 100)) + '%'; dica.style.top = ((H - m.b - h) / H * 100) + '%'; dica.replaceChildren(document.createTextNode(x.nome + ' · '), el('b', '', brl0.format(x.faturamento)), document.createTextNode(' · ' + x.vendas + (x.vendas === 1 ? ' venda' : ' vendas'))); if (x.faturamento) r.setAttribute('fill', COR_H); });
-      hit.addEventListener('mouseleave', () => { dica.hidden = true; if (x.faturamento) r.setAttribute('fill', COR); });
+      hit.addEventListener('mouseenter', () => { dica.hidden = false; dica.style.left = Math.min(90, Math.max(10, (xx + w / 2) / W * 100)) + '%'; dica.style.top = ((H - m.b - h) / H * 100) + '%'; dica.replaceChildren(...dicaDe(x)); if (v) r.setAttribute('fill', COR_H); });
+      hit.addEventListener('mouseleave', () => { dica.hidden = true; if (v) r.setAttribute('fill', COR); });
       svg.append(r, hit);
       if (i % passo === 0) { const t = mk('text', { x: m.l + i * bw + bw / 2, y: H - 8, 'text-anchor': 'middle', 'font-size': 11, fill: '#a79bc8' }); t.textContent = x.eixo; svg.append(t); }
     });

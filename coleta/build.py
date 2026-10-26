@@ -65,7 +65,11 @@ def plano():
         ]
     ini_mes = min(dt.date.fromisoformat(iv["mes"][0]), dt.date.fromisoformat(iv["hoje"][0]) - dt.timedelta(days=30))
     corte_utc = f"{ini_mes.isoformat()} 03:00:00"
+    janela = min(dt.date.fromisoformat(iv["mes"][0]), dt.date.fromisoformat(iv["hoje"][0]) - dt.timedelta(days=13)).isoformat()
     calls += [
+        {"tool": "Clint execute_indicator_query", "args": {"query": {"measures": ["Deal.count"], "dimensions": ["Contact.email", "Origin.name"],
+            "timeDimensions": [{"dimension": "Deal.createdAt", "granularity": "day", "dateRange": [janela, iv["hoje"][1]]}],
+            "timezone": "America/Sao_Paulo", "limit": 3000}}, "salvar": "clint_emails.json", "o_que": "payload.data"},
         {"tool": "Clint execute_indicator_query", "args": {"query": {"measures": ["Chat.withReply", "Chat.windowExpiredUnreplied"],
             "dimensions": ["Chat.userId"], "filters": [{"member": "Chat.userId", "operator": "equals", "values": ids}],
             "timezone": "America/Sao_Paulo"}}, "salvar": "fila.json", "o_que": "payload.data"},
@@ -219,6 +223,7 @@ def montar():
     out["dias"] = [{"d": k[0], "p": k[1], "m": k[2], "n": x[0], "v": round(x[1], 2), "r": x[2], "rv": round(x[3], 2)}
                    for k, x in sorted(agg.items())]
     out["desde"] = min([k[0] for k in agg] or [iv["mes"][0]])
+    out["topo"] = topo(iv)
     # série diária do mês
     a, b = iv["mes"]
     d = dt.date.fromisoformat(a)
@@ -227,6 +232,48 @@ def montar():
         out["serie"].append({"dia": d.isoformat(), "vendas": len(vs), "faturamento": round(sum(v["valor"] for v in vs), 2)})
         d += dt.timedelta(days=1)
     return out
+
+
+def topo(iv):
+    """Leads do Active (coleta/active.py). A página calcula qualquer período a partir das linhas."""
+    ac = ler("active.json")
+    if not ac:
+        return None
+    inicio = dt.date.fromisoformat("2026-01-01")
+    off = lambda d: (dt.date.fromisoformat(d) - inicio).days
+    usadas = sorted({l[2] for l in ac["linhas"]})
+    idx = {t: i for i, t in enumerate(usadas)}
+    nomes = [ac["tags"].get(str(t), f"tag {t}") for t in usadas]
+    linhas = [[off(l[3]), idx[l[2]], l[1]] for l in ac["linhas"] if l[3] >= inicio.isoformat()]
+    novos = [[off(n[1]), n[0]] for n in ac["novos"] if n[1] >= inicio.isoformat()]
+    # passagem para o comercial: quem ganhou tag no período e tem negócio de lead criado na Clint no período
+    emails = {int(k): v for k, v in (ac.get("emails") or {}).items()}
+    clint = {}
+    for r in ler("clint_emails.json", []) or []:
+        em = (r.get("Contact.email") or "").strip().lower()
+        org = (r.get("Origin.name") or "").lower()
+        d = (r.get("Deal.createdAt.day") or r.get("Deal.createdAt") or "")[:10]
+        if em and d and not org.startswith(NAO_LEAD):
+            clint.setdefault(em, set()).add(d)
+    passagem = {}
+    if clint or emails:
+        for p in PERIODOS:
+            a, b = iv[p]
+            pess = {l[1] for l in ac["linhas"] if a <= l[3] <= b}
+            com = [c for c in pess if c in emails]
+            na = [c for c in com if any(a <= d <= b for d in clint.get(emails[c], ()))]
+            passagem[p] = {"pessoas": len(pess), "na_clint": len(na)}
+    return {"inicio": inicio.isoformat(), "tags": nomes, "linhas": linhas, "novos": novos,
+            "base_ativa": ac.get("base_ativa") or 0, "passagem": passagem}
+
+
+def decifrar(env, chave):
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+    from cryptography.hazmat.primitives import hashes
+    b = lambda x: base64.b64decode(x)
+    k = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=b(env["sal"]), iterations=env["it"]).derive(chave.encode())
+    return json.loads(AESGCM(k).decrypt(b(env["iv"]), b(env["dados"]), None))
 
 
 def cifrar(obj, chave):
