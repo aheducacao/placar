@@ -17,8 +17,8 @@ TZ = ZoneInfo("America/Sao_Paulo")
 FELIPE = "d1c2f9ae-9d66-4e42-a83d-3755a21add0b"
 LETICIA = "2c70a62f-7002-4874-a6f2-19cbefca53e3"
 VENDEDORES = [(FELIPE, "Felipe", "felipe"), (LETICIA, "Letícia", "souza")]
-PERIODOS = ["hoje", "ontem", "7d", "mes"]
-ROTULO = {"hoje": "Hoje", "ontem": "Ontem", "7d": "Últimos 7 dias", "mes": "Este mês"}
+PERIODOS = ["hoje", "ontem", "7d", "semana", "mes"]
+ROTULO = {"hoje": "Hoje", "ontem": "Ontem", "7d": "Últimos 7 dias", "semana": "Semana passada", "mes": "Este mês"}
 
 
 def intervalos(agora=None):
@@ -27,6 +27,7 @@ def intervalos(agora=None):
         "hoje": (hoje, hoje),
         "ontem": (hoje - dt.timedelta(days=1), hoje - dt.timedelta(days=1)),
         "7d": (hoje - dt.timedelta(days=6), hoje),
+        "semana": (hoje - dt.timedelta(days=hoje.weekday() + 7), hoje - dt.timedelta(days=hoje.weekday() + 1)),
         "mes": (hoje.replace(day=1), hoje),
     }
     return {k: (a.isoformat(), b.isoformat()) for k, (a, b) in r.items()}
@@ -65,12 +66,6 @@ def plano():
     ini_mes = min(dt.date.fromisoformat(iv["mes"][0]), dt.date.fromisoformat(iv["hoje"][0]) - dt.timedelta(days=30))
     corte_utc = f"{ini_mes.isoformat()} 03:00:00"
     calls += [
-        {"tool": "Clint execute_indicator_query", "args": {"query": {"measures": ["Deal.count"],
-            "dimensions": ["DealCheckout.product_name", "DealCheckout.purchase_full_price",
-                           "DealCheckout.payment_type", "DealCheckout.purchase_paid_at"],
-            "filters": [{"member": "DealCheckout.purchase_status", "operator": "equals", "values": ["Aprovada"]},
-                        {"member": "DealCheckout.purchase_paid_at", "operator": "gte", "values": [corte_utc]}],
-            "timezone": "America/Sao_Paulo", "limit": 1000}}, "salvar": "vendas.json", "o_que": "payload.data"},
         {"tool": "Clint execute_indicator_query", "args": {"query": {"measures": ["Chat.withReply", "Chat.windowExpiredUnreplied"],
             "dimensions": ["Chat.userId"], "filters": [{"member": "Chat.userId", "operator": "equals", "values": ids}],
             "timezone": "America/Sao_Paulo"}}, "salvar": "fila.json", "o_que": "payload.data"},
@@ -133,16 +128,19 @@ def montar():
     iv = intervalos()
     agora = dt.datetime.now(TZ)
 
-    # vendas (uma linha por transação; a Clint repete a mesma compra em vários funis)
-    vend = {}
-    for r in ler("vendas.json", []) or []:
-        pago = r.get("DealCheckout.purchase_paid_at") or ""
-        if not pago or str(r.get("Deal.count", "1")) == "0":
+    # vendas: direto da API da Guru (coleta/guru.py baixar), pela data de aprovação, como no painel da Guru
+    METODO = {"credit_card": "Cartão de Crédito", "pix": "Pix", "billet": "Boleto", "bank_slip": "Boleto"}
+    vend, reemb = {}, []
+    for t in ler("guru.json", []) or []:
+        if not t.get("confirmado"):
             continue
-        chave = "|".join([pago, r.get("DealCheckout.product_name") or "", str(r.get("DealCheckout.purchase_full_price"))])
-        local = dt.datetime.fromisoformat(pago.replace(" ", "T")).replace(tzinfo=dt.timezone.utc).astimezone(TZ)
-        vend[chave] = {"dia": local.date().isoformat(), "produto": produto(r.get("DealCheckout.product_name")),
-                       "valor": num(r.get("DealCheckout.purchase_full_price")), "pagamento": r.get("DealCheckout.payment_type") or "Outro"}
+        dia = dt.datetime.fromtimestamp(int(t["confirmado"]), TZ).date().isoformat()
+        item = {"dia": dia, "produto": produto(t.get("produto")), "valor": num(t.get("valor")),
+                "pagamento": METODO.get(t.get("metodo"), "Outro")}
+        if t.get("status") == "approved":
+            vend[t["id"]] = item
+        elif t.get("status") in ("refunded", "chargedback", "chargeback"):
+            reemb.append(item)
     vendas = list(vend.values())
 
     fila = {quem(r.get("Chat.userId")): r for r in (ler("fila.json", []) or [])}
@@ -193,12 +191,14 @@ def montar():
         if isinstance(em, dict) and "summaryData" in em:
             em = em["summaryData"]
         fat = sum(v["valor"] for v in vs)
+        rs = [r for r in reemb if a <= r["dia"] <= b]
         produtos = sorted(por_prod.values(), key=lambda x: (-x["faturamento"], -x["leads"], x["produto"]))
         for x in produtos:
             x["faturamento"] = round(x["faturamento"], 2)
         out["periodos"][p] = {
             "rotulo": ROTULO[p], "de": a, "ate": b,
-            "faturamento": round(fat, 2), "vendas": len(vs), "ticket": round(fat / len(vs), 2) if vs else 0,
+            "faturamento": round(fat, 2), "vendas": len(vs),
+            "reembolsos": len(rs), "reembolsos_valor": round(sum(r["valor"] for r in rs), 2), "ticket": round(fat / len(vs), 2) if vs else 0,
             "leads_active": int(num(leads_ac.get("total") if isinstance(leads_ac, dict) else leads_ac)),
             "atendidos": sum(e["atendidos"] for e in equipe),
             "produtos": produtos,

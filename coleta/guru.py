@@ -82,8 +82,32 @@ def sonda():
     print(json.dumps({k: {"http": v["http"], "qtd": v["qtd"], "por_status": v["por_status"]} for k, v in out.items()}, ensure_ascii=False))
 
 
+def baixar(dias=45):
+    from zoneinfo import ZoneInfo
+    hoje = dt.datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+    ini = (hoje - dt.timedelta(days=dias)).isoformat()
+    st, ultimo, itens = todas({"confirmed_at_ini": ini, "confirmed_at_end": hoje.isoformat()})
+    if st != 200:
+        sys.exit(f"Guru respondeu {st}: {json.dumps(ultimo)[:300]}")
+    out = []
+    for t in itens:
+        pay = t.get("payment") or {}
+        prod = t.get("product") or {}
+        out.append({"id": t.get("id"), "status": t.get("status"),
+                    "confirmado": (t.get("dates") or {}).get("confirmed_at"),
+                    "valor": pay.get("total") or 0, "metodo": pay.get("method") or "",
+                    "parcelas": ((pay.get("installments") or {}).get("qty")) or 1,
+                    "produto": prod.get("name") or ""})
+    os.makedirs(os.path.join(AQUI, "raw"), exist_ok=True)
+    with open(os.path.join(AQUI, "raw", "guru.json"), "w") as h:
+        json.dump(out, h, ensure_ascii=False)
+    print("guru ok", len(out), "transações desde", ini)
+
+
 if __name__ == "__main__":
     if sys.argv[1:2] == ["sonda"]:
         sonda()
+    elif sys.argv[1:2] == ["baixar"]:
+        baixar()
     else:
         print(__doc__)

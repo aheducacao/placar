@@ -138,13 +138,14 @@
           <button type="button" data-p="hoje">Hoje</button>
           <button type="button" data-p="ontem">Ontem</button>
           <button type="button" data-p="7d">7 dias</button>
+          <button type="button" data-p="semana">Semana passada</button>
           <button type="button" data-p="mes">Este mês</button>
         </div>
       </header>
 
       <section class="placar" aria-label="Resumo">
         <div class="principal"><span class="rot">Faturamento</span><span class="val" id="k-fat">—</span><span class="nota" id="k-per">—</span></div>
-        <div><span class="rot">Vendas</span><span class="val" id="k-vendas">—</span><span class="nota">compras aprovadas</span></div>
+        <div><span class="rot">Vendas</span><span class="val" id="k-vendas">—</span><span class="nota" id="k-reemb">compras aprovadas</span></div>
         <div><span class="rot">Ticket médio</span><span class="val" id="k-ticket">—</span><span class="nota">por venda</span></div>
         <div><span class="rot">Leads novos</span><span class="val" id="k-leads">—</span><span class="nota">contatos novos no Active</span></div>
         <div><span class="rot">Atendidos</span><span class="val" id="k-atend">—</span><span class="nota">conversas do time</span></div>
@@ -175,7 +176,7 @@
         <section class="card"><h2>E-mails do período</h2><div class="linhas" id="emails"></div></section>
       </div>
 
-      <p class="rodape">Vendas vêm da Guru pela integração com a Clint, então só entram produtos integrados lá. Leads e e-mails vêm do Active Campaign; atendimento, da Clint. Horários de Brasília.</p>
+      <p class="rodape">Vendas e faturamento vêm direto da Guru, pela data de aprovação (o mesmo critério do painel da Guru); reembolsos aparecem à parte. Leads e e-mails vêm do Active Campaign; atendimento e leads por produto, da Clint. Horários de Brasília.</p>
     </div>
   </main>
 </div>
@@ -238,6 +239,7 @@
     $('#k-per').textContent = d.de === d.ate ? fmtD(d.de) : fmtD(d.de) + ' a ' + fmtD(d.ate);
     $('#k-fat').textContent = brl.format(d.faturamento);
     $('#k-vendas').textContent = int.format(d.vendas);
+    $('#k-reemb').textContent = d.reembolsos ? int.format(d.reembolsos) + (d.reembolsos === 1 ? ' reembolso' : ' reembolsos') + ' (' + brl.format(d.reembolsos_valor) + ')' : 'compras aprovadas';
     $('#k-ticket').textContent = d.vendas ? brl0.format(d.ticket) : '—';
     $('#k-leads').textContent = int.format(d.leads_active);
     $('#k-atend').textContent = int.format(d.atendidos);
