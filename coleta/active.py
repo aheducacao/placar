@@ -51,13 +51,25 @@ def dia(cdate):
     return dt.datetime.fromisoformat(cdate).astimezone(TZ).date().isoformat()
 
 
+CACHE_ABERTO = os.path.join(RAW, "active_cache.json")
+
+
+def cripto(acao, origem, destino):
+    """Cifra/decifra num processo separado: neste ambiente a biblioteca de criptografia
+    quebra se for carregada depois de uma conexão HTTPS no mesmo processo."""
+    import subprocess
+    r = subprocess.run([sys.executable, os.path.join(AQUI, "build.py"), acao, origem, destino], capture_output=True, text=True)
+    if r.returncode != 0:
+        sys.exit(f"Falha ao {acao} o cache do Active: {(r.stderr or r.stdout)[-300:]}")
+
+
 def abrir_cache(chave):
     if not os.path.exists(CACHE):
         return {"v": 1, "ultimo_ct": 0, "ultimo_contato": 0, "tags": {}, "linhas": [], "novos": []}
-    sys.path.insert(0, AQUI)
-    from build import decifrar
-    with open(CACHE) as h:
-        return decifrar(json.load(h), chave)
+    os.makedirs(RAW, exist_ok=True)
+    cripto("decifrar", CACHE, CACHE_ABERTO)
+    with open(CACHE_ABERTO) as h:
+        return json.load(h)
 
 
 def baixar():
@@ -143,11 +155,10 @@ def baixar():
 
     # grava cache cifrado (sem e-mail nem nome, só ids e datas)
     c["tags"] = {str(k): v for k, v in tags.items()}
-    sys.path.insert(0, AQUI)
-    from build import cifrar
-    with open(CACHE, "w") as h:
-        json.dump(cifrar(c, chave), h)
     os.makedirs(RAW, exist_ok=True)
+    with open(CACHE_ABERTO, "w") as h:
+        json.dump(c, h)
+    cripto("cifrar", CACHE_ABERTO, CACHE)
     with open(os.path.join(RAW, "active.json"), "w") as h:
         json.dump({"tags": c["tags"], "linhas": c["linhas"], "novos": c["novos"], "base_ativa": base,
                    "emails": {str(k): v for k, v in emails.items()}}, h, ensure_ascii=False)

@@ -403,5 +403,11 @@ if __name__ == "__main__":
         if "--mostrar" in sys.argv:
             print(json.dumps(dados, ensure_ascii=False, indent=1))
         print("ok", dados["atualizado"])
+    elif cmd in ("cifrar", "decifrar") and len(sys.argv) == 4:
+        chave = os.environ.get("PLACAR_CHAVE") or sys.exit("Falta PLACAR_CHAVE (login:senha).")
+        with open(sys.argv[2]) as h:
+            obj = json.load(h)
+        with open(sys.argv[3], "w") as h:
+            json.dump(cifrar(obj, chave) if cmd == "cifrar" else decifrar(obj, chave), h)
     else:
         print(__doc__)
