@@ -51,7 +51,7 @@ def todas(params):
         itens += d.get("data", [])
         paginas += 1
         cursor = d.get("next_cursor")
-        if not d.get("has_more_pages") or not cursor or paginas > 60:
+        if not d.get("has_more_pages") or not cursor or paginas > 400:
             return 200, d, itens
 
 
@@ -82,10 +82,10 @@ def sonda():
     print(json.dumps({k: {"http": v["http"], "qtd": v["qtd"], "por_status": v["por_status"]} for k, v in out.items()}, ensure_ascii=False))
 
 
-def baixar(dias=45):
+def baixar(desde="2025-01-01"):
     from zoneinfo import ZoneInfo
     hoje = dt.datetime.now(ZoneInfo("America/Sao_Paulo")).date()
-    ini = (hoje - dt.timedelta(days=dias)).isoformat()
+    ini = desde
     st, ultimo, itens = todas({"confirmed_at_ini": ini, "confirmed_at_end": hoje.isoformat()})
     if st != 200:
         sys.exit(f"Guru respondeu {st}: {json.dumps(ultimo)[:300]}")

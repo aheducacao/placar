@@ -208,6 +208,17 @@ def montar():
                        "clique": num(em.get("click_rate")), "cliques": int(num(em.get("total_unique_clicks"))),
                        "descadastros": int(num(em.get("total_unsubscribes")))},
         }
+    # vendas por dia, produto e forma de pagamento (para o período livre na página)
+    agg = {}
+    for v in vendas:
+        k = (v["dia"], v["produto"], v["pagamento"])
+        x = agg.setdefault(k, [0, 0.0, 0, 0.0]); x[0] += 1; x[1] += v["valor"]
+    for r in reemb:
+        k = (r["dia"], r["produto"], r["pagamento"])
+        x = agg.setdefault(k, [0, 0.0, 0, 0.0]); x[2] += 1; x[3] += r["valor"]
+    out["dias"] = [{"d": k[0], "p": k[1], "m": k[2], "n": x[0], "v": round(x[1], 2), "r": x[2], "rv": round(x[3], 2)}
+                   for k, x in sorted(agg.items())]
+    out["desde"] = min([k[0] for k in agg] or [iv["mes"][0]])
     # série diária do mês
     a, b = iv["mes"]
     d = dt.date.fromisoformat(a)
