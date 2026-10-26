@@ -56,6 +56,17 @@ def plano():
             {**q({"measures": ["DealActivity.count"], "dimensions": ["DealActivity.userId", "DealActivity.activity_type_label"],
                   "filters": [{"member": "DealActivity.userId", "operator": "equals", "values": ids}],
                   "timeDimensions": [{"dimension": "DealActivity.completedAt", "dateRange": dr}]}), "salvar": f"{p}_atividades.json", "o_que": "payload.data"},
+            {**q({"measures": ["TrackStage.changeStage"], "dimensions": ["Origin.name", "TrackStage.stage"],
+                  "timeDimensions": [{"dimension": "TrackStage.date", "dateRange": dr}], "limit": 1000}), "salvar": f"{p}_etapas.json", "o_que": "payload.data"},
+            {**q({"measures": ["DealActivity.meetingScheduledActivities", "DealActivity.meetingActivities", "DealActivity.noShowActivities",
+                               "DealActivity.meetingRescheduledActivities"], "dimensions": ["Origin.name"],
+                  "filters": [{"member": "Origin.name", "operator": "contains", "values": ["lian"]}],
+                  "timeDimensions": [{"dimension": "DealActivity.completedAt", "dateRange": dr}], "limit": 50}), "salvar": f"{p}_reunioes.json", "o_que": "payload.data"},
+            {**q({"measures": ["TrackStatus.changeStatus"], "dimensions": ["TrackStatus.dealId", "Deal.value", "Origin.name"],
+                  "filters": [{"member": "TrackStatus.category", "operator": "equals", "values": ["DEAL_UPDATE_STATUS"]},
+                              {"member": "TrackStatus.statusLabel", "operator": "equals", "values": ["Ganho"]},
+                              {"member": "Origin.name", "operator": "contains", "values": ["lian"]}],
+                  "timeDimensions": [{"dimension": "TrackStatus.date", "dateRange": dr}], "limit": 500}), "salvar": f"{p}_ganhos_alianca.json", "o_que": "payload.data"},
             {"tool": "ActiveCampaign list_contacts", "args": {"params": {"filters": {"created_after": f"{a}T00:00:00-03:00",
                  "created_before": f"{(dt.date.fromisoformat(b) + dt.timedelta(days=1)).isoformat()}T00:00:00-03:00"}, "limit": 1}},
              "salvar": f"{p}_leads.json", "o_que": "{\"total\": meta.total}"},
@@ -79,8 +90,10 @@ def plano():
 
 # ---------- cálculo ----------
 
-def produto(nome):
+def produto(nome, clint=False):
     n = (nome or "").lower()
+    if clint and n.startswith("marketing e vendas"):
+        return "Formação de Vendedor"  # leads da imersão de marketing foram para a Formação
     if "gestão de pessoas" in n or "gestao de pessoas" in n:
         return "Imersão Gestão de Pessoas"
     if "alian" in n:
@@ -91,7 +104,9 @@ def produto(nome):
         return "Formação de Vendedor"
     if "gest" in n:
         return "AH Gestão"
-    if "summit" in n or "palestra" in n:
+    if "palestra" in n:
+        return "AH Summit Palestras"
+    if "summit" in n:
         return "AH Summit"
     if "club" in n:
         return "AH Club"
@@ -100,6 +115,8 @@ def produto(nome):
     return "Outros"
 
 
+FOCO = ["AH Gestão", "Formação de Vendedor", "AH Club", "AH Summit Palestras"]
+CHECKOUT = ("abandono", "compras em aberto", "cartão recusado", "cartao recusado", "compras expiradas")
 NAO_LEAD = ("compras", "assinaturas", "cartão recusado", "cartao recusado", "reembolso", "participantes",
             "acompanhamento", "onboarding", "mentorandos", "abandono")
 
@@ -140,7 +157,7 @@ def montar():
             continue
         dia = dt.datetime.fromtimestamp(int(t["confirmado"]), TZ).date().isoformat()
         item = {"dia": dia, "produto": produto(t.get("produto")), "valor": num(t.get("valor")),
-                "pagamento": METODO.get(t.get("metodo"), "Outro")}
+                "pagamento": METODO.get(t.get("metodo"), "Outro"), "qtd": int(num(t.get("qtd")) or 1)}
         if t.get("status") == "approved":
             vend[t["id"]] = item
         elif t.get("status") in ("refunded", "chargedback", "chargeback"):
@@ -155,19 +172,19 @@ def montar():
         vs = [v for v in vendas if a <= v["dia"] <= b]
         por_prod = {}
         def linha(pn):
-            return por_prod.setdefault(pn, {"produto": pn, "leads": 0, "atendidos": 0, "vendas": 0, "faturamento": 0.0})
+            return por_prod.setdefault(pn, {"produto": pn, "leads": 0, "atendidos": 0, "vendas": 0, "cadeiras": 0, "faturamento": 0.0})
         for v in vs:
-            l = linha(v["produto"]); l["vendas"] += 1; l["faturamento"] += v["valor"]
+            l = linha(v["produto"]); l["vendas"] += 1; l["cadeiras"] += v["qtd"]; l["faturamento"] += v["valor"]
         for r in ler(f"{p}_entradas.json", []) or []:
             nome = (r.get("Origin.name") or "")
             if not nome or nome.lower().startswith(NAO_LEAD):
                 continue
-            linha(produto(nome))["leads"] += int(num(r.get("Deal.count")))
+            linha(produto(nome, True))["leads"] += int(num(r.get("Deal.count")))
         for r in ler(f"{p}_atendidos.json", []) or []:
             nome = r.get("Origin.name") or ""
             if not nome or nome.lower().startswith(NAO_LEAD):
                 continue
-            linha(produto(nome))["atendidos"] += int(num(r.get("Chat.count")))
+            linha(produto(nome, True))["atendidos"] += int(num(r.get("Chat.count")))
         pagamentos = {}
         for v in vs:
             pg = {"Cartão de Crédito": "Cartão", "Pix": "Pix", "Boleto": "Boleto"}.get(v["pagamento"], "Outro")
@@ -196,9 +213,17 @@ def montar():
             em = em["summaryData"]
         fat = sum(v["valor"] for v in vs)
         rs = [r for r in reemb if a <= r["dia"] <= b]
-        produtos = sorted(por_prod.values(), key=lambda x: (-x["faturamento"], -x["leads"], x["produto"]))
+        produtos = sorted(por_prod.values(), key=lambda x: (x["produto"] not in FOCO + ["Aliança"], -x["faturamento"], -x["leads"], x["produto"]))
         for x in produtos:
             x["faturamento"] = round(x["faturamento"], 2)
+        foco, ali = funis(p, por_prod)
+        # Aliança é vendida fora da Guru: a linha dela usa os negócios ganhos na Clint
+        extra_ali = 0.0
+        x = por_prod.get("Aliança")
+        if ali["vendas"] and (not x or not x["vendas"]):
+            x = linha("Aliança")
+            x.update({"vendas": ali["vendas"], "faturamento": ali["valor"], "cadeiras": 0, "fonte": "clint"})
+            extra_ali = ali["valor"]
         out["periodos"][p] = {
             "rotulo": ROTULO[p], "de": a, "ate": b,
             "faturamento": round(fat, 2), "vendas": len(vs),
@@ -207,6 +232,7 @@ def montar():
             "atendidos": sum(e["atendidos"] for e in equipe),
             "produtos": produtos,
             "pagamentos": sorted(pagamentos.values(), key=lambda x: -x["valor"]),
+            "foco": foco, "alianca": ali, "extra_alianca": round(extra_ali, 2),
             "equipe": equipe,
             "emails": {"envios": int(num(em.get("total_sends"))), "abertura": num(em.get("open_rate")),
                        "clique": num(em.get("click_rate")), "cliques": int(num(em.get("total_unique_clicks"))),
@@ -216,11 +242,11 @@ def montar():
     agg = {}
     for v in vendas:
         k = (v["dia"], v["produto"], v["pagamento"])
-        x = agg.setdefault(k, [0, 0.0, 0, 0.0]); x[0] += 1; x[1] += v["valor"]
+        x = agg.setdefault(k, [0, 0.0, 0, 0.0, 0]); x[0] += 1; x[1] += v["valor"]; x[4] += v["qtd"]
     for r in reemb:
         k = (r["dia"], r["produto"], r["pagamento"])
-        x = agg.setdefault(k, [0, 0.0, 0, 0.0]); x[2] += 1; x[3] += r["valor"]
-    out["dias"] = [{"d": k[0], "p": k[1], "m": k[2], "n": x[0], "v": round(x[1], 2), "r": x[2], "rv": round(x[3], 2)}
+        x = agg.setdefault(k, [0, 0.0, 0, 0.0, 0]); x[2] += 1; x[3] += r["valor"]
+    out["dias"] = [{"d": k[0], "p": k[1], "m": k[2], "n": x[0], "q": x[4], "v": round(x[1], 2), "r": x[2], "rv": round(x[3], 2)}
                    for k, x in sorted(agg.items())]
     out["desde"] = min([k[0] for k in agg] or [iv["mes"][0]])
     out["topo"] = topo(iv)
@@ -232,6 +258,59 @@ def montar():
         out["serie"].append({"dia": d.isoformat(), "vendas": len(vs), "faturamento": round(sum(v["valor"] for v in vs), 2)})
         d += dt.timedelta(days=1)
     return out
+
+
+def funis(p, por_prod):
+    """Funil dos produtos em foco e da Aliança, a partir das entradas, mudanças de etapa e atividades da Clint."""
+    f = {pn: {"produto": pn, "leads": 0, "atendidos": 0, "responderam": 0, "aguardando": 0, "checkout": 0,
+              "vendas": 0, "cadeiras": 0, "faturamento": 0.0} for pn in FOCO}
+    for pn in FOCO:
+        x = por_prod.get(pn) or {}
+        for k in ("leads", "atendidos", "vendas", "cadeiras", "faturamento"):
+            f[pn][k] = x.get(k, 0)
+    for r in ler(f"{p}_entradas.json", []) or []:
+        nome = (r.get("Origin.name") or "").lower()
+        pn = produto(nome, True)
+        if pn in f and nome.startswith(CHECKOUT):
+            f[pn]["checkout"] += int(num(r.get("Deal.count")))
+    a = {"inscricoes": 0, "atendidos": 0, "formulario": 0, "qualificados": 0, "agendadas_etapa": 0, "no_show_etapa": 0,
+         "negociacao": 0, "nao_avancou": 0, "agendamentos": 0, "reagendamentos": 0, "realizadas": 0, "no_show": 0,
+         "vendas": 0, "valor": 0.0, "sem_valor": 0}
+    x = por_prod.get("Aliança") or {}
+    a["inscricoes"], a["atendidos"] = x.get("leads", 0), x.get("atendidos", 0)
+    for r in ler(f"{p}_etapas.json", []) or []:
+        org = (r.get("Origin.name") or "").lower()
+        st = (r.get("TrackStage.stage") or "").strip().lower()
+        n = int(num(r.get("TrackStage.changeStage")))
+        if not org or not st or org.startswith(NAO_LEAD):
+            continue
+        pn = produto(org, True)
+        if pn in f:
+            if st.startswith("conex") or st.startswith("respondeu"):
+                f[pn]["responderam"] += n
+            elif st.startswith("aguardando compra"):
+                f[pn]["aguardando"] += n
+        elif pn == "Aliança":
+            chave = {"formulário respondido": "formulario", "qualificado para sessão estratégico": "qualificados",
+                     "sessão estratégica agendada": "agendadas_etapa", "no-show": "no_show_etapa", "em negociação": "negociacao",
+                     "não avançou após a sessão estratégica": "nao_avancou"}.get(st)
+            if chave:
+                a[chave] += n
+    for r in ler(f"{p}_reunioes.json", []) or []:
+        a["agendamentos"] += int(num(r.get("DealActivity.meetingScheduledActivities")))
+        a["reagendamentos"] += int(num(r.get("DealActivity.meetingRescheduledActivities")))
+        a["realizadas"] += int(num(r.get("DealActivity.meetingActivities")))
+        a["no_show"] += int(num(r.get("DealActivity.noShowActivities")))
+    vistos = {}
+    for r in ler(f"{p}_ganhos_alianca.json", []) or []:
+        if r.get("TrackStatus.dealId"):
+            vistos[r["TrackStatus.dealId"]] = num(r.get("Deal.value")) / 100
+    a["vendas"] = len(vistos)
+    a["valor"] = round(sum(vistos.values()), 2)
+    a["sem_valor"] = sum(1 for v in vistos.values() if not v)
+    for pn in f:
+        f[pn]["faturamento"] = round(f[pn]["faturamento"], 2)
+    return [f[pn] for pn in FOCO], a
 
 
 def topo(iv):

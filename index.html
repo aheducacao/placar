@@ -123,6 +123,28 @@
   .cab { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
   .cab .muted { font-size: 12px; }
 
+  .foco { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  @media (max-width: 760px) { .foco { grid-template-columns: 1fr; } }
+  .funil { background: var(--panel-2); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .funil h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  .funil .res { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--muted); }
+  .funil .res b { font-family: var(--display); font-size: 22px; font-weight: 600; color: var(--fg); margin-right: 3px; }
+  .funil .res .lj { color: var(--laranja); }
+  .etapas { display: flex; flex-direction: column; gap: 7px; }
+  .etapa { display: grid; grid-template-columns: minmax(96px, 38%) 1fr auto; align-items: center; gap: 10px; font-size: 13px; }
+  .etapa .nm { color: var(--muted); }
+  .etapa .br { height: 10px; border-radius: 5px; background: rgba(139, 92, 255, .14); overflow: hidden; }
+  .etapa .br i { display: block; height: 100%; border-radius: 5px; background: var(--roxo); min-width: 2px; }
+  .etapa.fim .br i { background: var(--laranja); }
+  .etapa .vl { font-family: var(--display); font-size: 18px; font-weight: 600; min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; }
+  .etapa .vl small { font-family: var(--body); font-size: 11px; font-weight: 400; color: var(--muted); margin-left: 6px; }
+  .etapa.zero .vl { color: var(--muted); opacity: .6; }
+  .conv { font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
+  .conv b { color: var(--fg); }
+  .ali { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .ali { grid-template-columns: 1fr; } }
+  td.pc { color: var(--muted); font-size: 14px; }
+
   .rodape { font-size: 12px; color: var(--muted); line-height: 1.55; max-width: 75ch; }
   .vazio { color: var(--muted); font-size: 13px; }
 </style>
@@ -173,13 +195,13 @@
         <div><span class="rot">Atendidos</span><span class="val" id="k-atend">—</span><span class="nota" id="k-atend-n">conversas do time</span></div>
       </section>
 
-      <p class="aviso" id="aviso-livre" hidden>Nas datas escolhidas aparecem as vendas da Guru e os leads do Active dia a dia. Atendimento, leads da Clint, passagem para o comercial e e-mails ficam nos períodos prontos (Hoje, Ontem, 7 dias, Semana passada e Este mês).</p>
+      <p class="aviso" id="aviso-livre" hidden>Nas datas escolhidas aparecem as vendas da Guru e os leads do Active dia a dia. Atendimento, leads da Clint, funis do Foco do momento e da Aliança, passagem para o comercial e e-mails ficam nos períodos prontos (Hoje, Ontem, 7 dias, Semana passada e Este mês).</p>
 
       <section class="card">
         <h2>Por produto</h2>
-        <p class="sub" id="sub-prod">Leads: entradas nos funis da Clint. Atendidos: conversas do time com pessoas desse produto (quem está em dois funis conta nos dois).</p>
+        <p class="sub" id="sub-prod">Leads: entradas nos funis da Clint. Atendidos: conversas do time com pessoas desse produto (quem está em dois funis conta nos dois). Cadeiras: quantidade de ingressos/vagas nas vendas da Guru. Conversão: vendas do período sobre os leads e sobre as conversas do mesmo período.</p>
         <div class="tab"><table>
-          <thead><tr><th>Produto</th><th>Leads</th><th><span class="l">Atendidos</span><span class="c">Atend.</span></th><th>Vendas</th><th><span class="l">Faturamento</span><span class="c">Fat.</span></th></tr></thead>
+          <thead><tr><th>Produto</th><th>Leads</th><th><span class="l">Atendidos</span><span class="c">Atend.</span></th><th>Vendas</th><th><span class="l">Cadeiras</span><span class="c">Cad.</span></th><th><span class="l">Conv. leads</span><span class="c">% leads</span></th><th><span class="l">Conv. conversas</span><span class="c">% conv.</span></th><th><span class="l">Faturamento</span><span class="c">Fat.</span></th></tr></thead>
           <tbody id="t-prod"></tbody>
         </table></div>
       </section>
@@ -187,6 +209,20 @@
       <section class="card">
         <h2 id="t-graf">Faturamento por dia</h2>
         <div class="grafico" id="grafico"></div>
+      </section>
+
+      <section class="card" id="sec-foco">
+        <h2>Foco do momento</h2>
+        <p class="sub">O funil de cada produto que estamos vendendo agora. Responderam e aguardando compra contam as mudanças de etapa feitas pelo time na Clint; checkout iniciado soma carrinho abandonado, Pix/boleto gerado, cartão recusado e compra expirada.</p>
+        <div class="foco" id="foco"></div>
+      </section>
+
+      <section class="card" id="sec-alianca">
+        <div class="cab"><h2>Aliança de Resultados</h2><span class="muted">venda por sessão estratégica</span></div>
+        <div class="ali">
+          <div class="funil"><h3>Funil da sessão estratégica</h3><div class="etapas" id="ali-funil"></div></div>
+          <div class="funil"><h3>Resultado</h3><div class="linhas" id="ali-res"></div><p class="conv" id="ali-nota"></p></div>
+        </div>
       </section>
 
       <section class="card" id="sec-equipe">
@@ -222,7 +258,7 @@
         <section class="card"><h2>Forma de pagamento</h2><div class="linhas" id="pagamentos"></div></section>
       </div>
 
-      <p class="rodape">Vendas e faturamento vêm direto da Guru, pela data de aprovação (o mesmo critério do painel da Guru); reembolsos aparecem à parte. Leads por tag, contatos novos e e-mails vêm do Active Campaign; atendimento, leads por produto e a passagem para o comercial, da Clint. Horários de Brasília.</p>
+      <p class="rodape">Vendas e faturamento vêm direto da Guru, pela data de aprovação (o mesmo critério do painel da Guru); reembolsos aparecem à parte. Na Aliança, vendas e valores vêm dos negócios ganhos na Clint. Leads por tag, contatos novos e e-mails vêm do Active Campaign; atendimento, leads por produto e a passagem para o comercial, da Clint. Horários de Brasília.</p>
     </div>
   </main>
 </div>
@@ -292,8 +328,8 @@
     let fat = 0, n = 0, r = 0, rv = 0;
     linhas.forEach((x) => {
       fat += x.v; n += x.n; r += x.r; rv += x.rv;
-      const p = prod[x.p] = prod[x.p] || { produto: x.p, leads: null, atendidos: null, vendas: 0, faturamento: 0 };
-      p.vendas += x.n; p.faturamento += x.v;
+      const p = prod[x.p] = prod[x.p] || { produto: x.p, leads: null, atendidos: null, vendas: 0, cadeiras: 0, faturamento: 0 };
+      p.vendas += x.n; p.cadeiras += x.q || (x.n ? x.n : 0); p.faturamento += x.v;
       if (x.n) { const f = FORMA[x.m] || 'Outro'; const g = pag[f] = pag[f] || { forma: f, vendas: 0, valor: 0 }; g.vendas += x.n; g.valor += x.v; }
     });
     return { livre: true, de: a, ate: b, faturamento: fat, vendas: n, ticket: n ? fat / n : 0, reembolsos: r, reembolsos_valor: rv,
@@ -311,7 +347,7 @@
     $('#sec-equipe').hidden = P === 'livre';
     $('#sec-emails').hidden = P === 'livre';
     $('#sub-prod').hidden = P === 'livre';
-    $('#k-per').textContent = d.de === d.ate ? fmtD(d.de) : fmtD(d.de) + ' a ' + fmtD(d.ate);
+    $('#k-per').textContent = (d.de === d.ate ? fmtD(d.de) : fmtD(d.de) + ' a ' + fmtD(d.ate)) + ' · Guru' + (d.extra_alianca ? ' + ' + brl0.format(d.extra_alianca) + ' da Aliança na Clint' : '');
     $('#k-fat').textContent = brl.format(d.faturamento);
     $('#k-vendas').textContent = int.format(d.vendas);
     $('#k-reemb').textContent = d.reembolsos ? int.format(d.reembolsos) + (d.reembolsos === 1 ? ' reembolso' : ' reembolsos') + ' (' + brl.format(d.reembolsos_valor) + ')' : 'compras aprovadas';
@@ -326,8 +362,10 @@
     const tb = $('#t-prod');
     const max = Math.max(1, ...d.produtos.map((x) => x.faturamento));
     const cel = (v) => el('td', 'n' + (v ? '' : ' zero'), v == null ? '—' : int.format(v));
+    const pcel = (v, base) => el('td', 'pc' + (base && v ? '' : ' zero'), base ? pct(100 * v / base) : '—');
     const rows = d.produtos.map((x) => {
-      const tr = el('tr'); tr.append(el('td', '', x.produto), cel(x.leads), cel(x.atendidos), cel(x.vendas));
+      const nomeP = el('td', '', x.produto); if (x.fonte === 'clint') nomeP.append(el('small', 'muted', ' · vendas da Clint'));
+      const tr = el('tr'); tr.append(nomeP, cel(x.leads), cel(x.atendidos), cel(x.vendas), cel(x.cadeiras), pcel(x.vendas, x.leads), pcel(x.vendas, x.atendidos));
       const td = el('td', 'n' + (x.faturamento ? '' : ' zero')); const w = el('div', 'fat');
       if (x.faturamento) { const bar = el('i'); bar.style.width = Math.round(80 * x.faturamento / max) + 'px'; w.append(bar); }
       w.append(document.createTextNode(fmtFat(x.faturamento))); td.append(w); tr.append(td); return tr;
@@ -335,9 +373,11 @@
     if (rows.length) {
       const soma = (k) => d.produtos.reduce((s, x) => s + (x[k] || 0), 0);
       const tot = el('tr', 'total');
-      tot.append(el('td', '', 'Total'), el('td', 'n', d.livre ? '—' : int.format(soma('leads'))), el('td', 'n', d.livre ? '—' : int.format(soma('atendidos'))), el('td', 'n', int.format(d.vendas)), el('td', 'n', fmtFat(d.faturamento)));
+      const L = soma('leads'), A = soma('atendidos');
+      tot.append(el('td', '', 'Total'), el('td', 'n', d.livre ? '—' : int.format(L)), el('td', 'n', d.livre ? '—' : int.format(A)), el('td', 'n', int.format(soma('vendas'))), el('td', 'n', int.format(soma('cadeiras'))),
+        d.livre ? el('td', 'pc', '—') : pcel(soma('vendas'), L), d.livre ? el('td', 'pc', '—') : pcel(soma('vendas'), A), el('td', 'n', fmtFat(soma('faturamento'))));
       tb.replaceChildren(...rows, tot);
-    } else { const tr = el('tr'); const td = el('td', 'vazio', 'Nada no período.'); td.colSpan = 5; tr.append(td); tb.replaceChildren(tr); }
+    } else { const tr = el('tr'); const td = el('td', 'vazio', 'Nada no período.'); td.colSpan = 8; tr.append(td); tb.replaceChildren(tr); }
 
     if (!d.livre) $('#equipe').replaceChildren(...d.equipe.map((v) => {
       const c = el('div', 'pessoa'); c.append(el('h3', '', v.nome));
@@ -358,6 +398,81 @@
     }
     grafico($('#grafico'), serieDe(d), (x) => x.faturamento, (x) => [document.createTextNode(x.nome + ' · '), el('b', '', brl0.format(x.faturamento)), document.createTextNode(' · ' + x.vendas + (x.vendas === 1 ? ' venda' : ' vendas'))]);
     desenharTopo(d, tp);
+    desenharFoco(d);
+    desenharAlianca(d, tp);
+  }
+
+  // ---------- Foco do momento e Aliança ----------
+  function etapas(lista) {
+    const max = Math.max(1, ...lista.map((e) => e.v || 0));
+    return lista.map((e, i) => {
+      const r = el('div', 'etapa' + (e.fim ? ' fim' : '') + (e.v ? '' : ' zero'));
+      const br = el('div', 'br'); const bar = el('i'); bar.style.width = (e.v ? Math.max(2, 100 * e.v / max) : 0) + '%'; br.append(bar);
+      const vl = el('span', 'vl', e.v == null ? '—' : int.format(e.v));
+      if (e.nota) vl.append(el('small', '', e.nota));
+      r.append(el('span', 'nm', e.nome), br, vl); return r;
+    });
+  }
+  const taxa = (a, b) => (b ? pct(100 * a / b) : '—');
+
+  function desenharFoco(d) {
+    const sec = $('#sec-foco'); sec.hidden = d.livre || !d.foco;
+    if (sec.hidden) return;
+    $('#foco').replaceChildren(...d.foco.map((x) => {
+      const c = el('div', 'funil'); c.append(el('h3', '', x.produto));
+      const res = el('div', 'res');
+      const pv = (num, txt, cls) => { const s = el('span'); s.append(el('b', cls || '', num), document.createTextNode(txt)); res.append(s); };
+      pv(int.format(x.vendas), x.vendas === 1 ? ' venda' : ' vendas');
+      pv(int.format(x.cadeiras), x.cadeiras === 1 ? ' cadeira' : ' cadeiras');
+      pv(brl0.format(x.faturamento), '', 'lj');
+      const lista = [
+        { nome: 'Leads', v: x.leads }, { nome: 'Conversas', v: x.atendidos }, { nome: 'Responderam', v: x.responderam },
+        { nome: 'Aguardando compra', v: x.aguardando }, { nome: 'Checkout iniciado', v: x.checkout }, { nome: 'Vendas', v: x.vendas, fim: true },
+      ];
+      const et = el('div', 'etapas'); et.append(...etapas(lista));
+      const cv = el('p', 'conv'); cv.append(document.createTextNode('Conversão: '), el('b', '', taxa(x.vendas, x.leads)), document.createTextNode(' dos leads · '), el('b', '', taxa(x.vendas, x.atendidos)), document.createTextNode(' das conversas'));
+      c.append(res, et, cv); return c;
+    }));
+  }
+
+  function desenharAlianca(d, tp) {
+    const sec = $('#sec-alianca'); const a = d.alianca;
+    sec.hidden = d.livre || !a;
+    if (sec.hidden) return;
+    let leadsAC = null;
+    if (tp && DADOS.topo) {
+      const T = DADOS.topo, ids = new Set(T.tags.map((n, i) => (/alian/i.test(n) ? i : -1)).filter((i) => i >= 0)), pess = new Set();
+      T.linhas.forEach(([o, t, c]) => { if (o >= tp.oa && o <= tp.ob && ids.has(t)) pess.add(c); });
+      leadsAC = pess.size;
+    }
+    const realizadas = a.realizadas, agend = a.agendamentos;
+    const lista = [
+      { nome: 'Leads no Active (tags)', v: leadsAC },
+      { nome: 'Inscrições na Clint', v: a.inscricoes },
+      { nome: 'Conversas', v: a.atendidos },
+      { nome: 'Formulário respondido', v: a.formulario },
+      { nome: 'Qualificados', v: a.qualificados },
+      { nome: 'Sessões agendadas', v: agend },
+      { nome: 'Sessões realizadas', v: realizadas },
+      { nome: 'No-show', v: a.no_show || a.no_show_etapa },
+      { nome: 'Em negociação', v: a.negociacao },
+      { nome: 'Vendas', v: a.vendas, fim: true },
+    ];
+    $('#ali-funil').replaceChildren(...etapas(lista));
+    const linhas = [
+      ['Vendas', int.format(a.vendas)],
+      ['Valor vendido', brl0.format(a.valor)],
+      ['Ticket médio', a.vendas - a.sem_valor > 0 ? brl0.format(a.valor / (a.vendas - a.sem_valor)) : '—'],
+      ['Conversão das sessões', taxa(a.vendas, agend)],
+      ['Conversão das inscrições', taxa(a.vendas, a.inscricoes)],
+      ['Cadeiras', 'em breve'],
+    ];
+    $('#ali-res').replaceChildren(...linhas.map(([x, y]) => { const r = el('div'); r.append(el('span', '', x), el('b', '', y)); return r; }));
+    const notas = [];
+    if (a.sem_valor) notas.push(a.sem_valor + (a.sem_valor === 1 ? ' venda está' : ' vendas estão') + ' sem valor preenchido na Clint.');
+    if (agend && !realizadas) notas.push('Sessões realizadas aparecem quando o time registrar a atividade "Reunião" na Clint.');
+    $('#ali-nota').textContent = notas.join(' ');
+    $('#ali-nota').hidden = !notas.length;
   }
 
   // ---------- Leads do Active ----------

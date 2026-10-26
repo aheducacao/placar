@@ -105,7 +105,8 @@ def baixar(desde="2025-01-01"):
                     "confirmado": (t.get("dates") or {}).get("confirmed_at"),
                     "valor": pay.get("total") or 0, "metodo": pay.get("method") or "",
                     "parcelas": ((pay.get("installments") or {}).get("qty")) or 1,
-                    "produto": prod.get("name") or ""})
+                    "produto": prod.get("name") or "", "oferta": (prod.get("offer") or {}).get("name") or "",
+                    "qtd": int(prod.get("qty") or 1)})
     os.makedirs(os.path.join(AQUI, "raw"), exist_ok=True)
     with open(os.path.join(AQUI, "raw", "guru.json"), "w") as h:
         json.dump(out, h, ensure_ascii=False)
