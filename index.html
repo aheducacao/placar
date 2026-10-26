@@ -143,7 +143,21 @@
   .conv b { color: var(--fg); }
   .ali { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
   @media (max-width: 760px) { .ali { grid-template-columns: 1fr; } }
-  td.pc { color: var(--muted); font-size: 14px; }
+  td.pc { font-family: var(--display); font-size: 19px; font-weight: 600; }
+  td small.sub2 { display: block; font-family: var(--body); font-size: 11px; font-weight: 400; color: var(--muted); white-space: nowrap; }
+  td.pc.zero, td.pc.zero small { color: var(--muted); opacity: .55; }
+  .vend-ali { display: flex; flex-direction: column; gap: 10px; }
+  .vend-ali .leg { display: flex; gap: 18px; font-size: 13px; font-weight: 600; }
+  .vend-ali .leg span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; background: var(--cor); vertical-align: -1px; }
+  .cmp { display: grid; grid-template-columns: minmax(110px, 30%) 1fr; gap: 6px 12px; align-items: center; font-size: 13px; }
+  .cmp .nm { color: var(--muted); }
+  .cmp .par { display: flex; flex-direction: column; gap: 3px; }
+  .cmp .lin { display: grid; grid-template-columns: 1fr 9ch; align-items: center; gap: 8px; }
+  .cmp .lin i { display: block; height: 9px; border-radius: 5px; background: var(--cor); min-width: 2px; }
+  .cmp .lin b { font-family: var(--display); font-size: 16px; font-weight: 600; color: var(--cor); text-align: right; white-space: nowrap; }
+  .cmp .lin.zero i { opacity: .25; } .cmp .lin.zero b { opacity: .55; }
+  .cmp .sep { grid-column: 1 / -1; border-top: 1px solid var(--line); }
+  td .tg { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.4; word-break: break-word; }
 
   .rodape { font-size: 12px; color: var(--muted); line-height: 1.55; max-width: 75ch; }
   .vazio { color: var(--muted); font-size: 13px; }
@@ -199,9 +213,9 @@
 
       <section class="card">
         <h2>Por produto</h2>
-        <p class="sub" id="sub-prod">Leads: entradas nos funis da Clint. Atendidos: conversas do time com pessoas desse produto (quem está em dois funis conta nos dois). Cadeiras: quantidade de ingressos/vagas nas vendas da Guru. Conversão: vendas do período sobre os leads e sobre as conversas do mesmo período.</p>
+        <p class="sub" id="sub-prod">Leads: entradas nos funis da Clint. Atendidos: conversas do time com pessoas desse produto (quem está em dois funis conta nos dois). Cadeiras: quantidade de ingressos/vagas nas vendas da Guru. Conversão: das pessoas que o time atendeu, quantas compraram (conversa com Felipe ou Letícia até 30 dias antes da compra). Vendas feitas direto no site, sem conversa, aparecem embaixo do número de vendas.</p>
         <div class="tab"><table>
-          <thead><tr><th>Produto</th><th>Leads</th><th><span class="l">Atendidos</span><span class="c">Atend.</span></th><th>Vendas</th><th><span class="l">Cadeiras</span><span class="c">Cad.</span></th><th><span class="l">Conv. leads</span><span class="c">% leads</span></th><th><span class="l">Conv. conversas</span><span class="c">% conv.</span></th><th><span class="l">Faturamento</span><span class="c">Fat.</span></th></tr></thead>
+          <thead><tr><th>Produto</th><th>Leads</th><th><span class="l">Atendidos</span><span class="c">Atend.</span></th><th>Vendas</th><th><span class="l">Cadeiras</span><span class="c">Cad.</span></th><th><span class="l">Conversão</span><span class="c">Conv.</span></th><th><span class="l">Faturamento</span><span class="c">Fat.</span></th></tr></thead>
           <tbody id="t-prod"></tbody>
         </table></div>
       </section>
@@ -223,6 +237,10 @@
           <div class="funil"><h3>Funil da sessão estratégica</h3><div class="etapas" id="ali-funil"></div></div>
           <div class="funil"><h3>Resultado</h3><div class="linhas" id="ali-res"></div><p class="conv" id="ali-nota"></p></div>
         </div>
+        <div class="funil vend-ali" id="ali-vend">
+          <div class="cab"><h3>Por vendedor</h3><div class="leg" id="ali-leg"></div></div>
+          <div class="cmp" id="ali-cmp"></div>
+        </div>
       </section>
 
       <section class="card" id="sec-equipe">
@@ -233,7 +251,7 @@
 
       <section class="card" id="sec-active">
         <div class="cab"><h2>Leads do Active Campaign</h2><span class="muted" id="ac-base"></span></div>
-        <p class="sub">Todo mundo que ganhou uma tag no período (formulário, botão, pesquisa, lista de interesse...). Não conta tag automática de engajamento nem progresso de aula.</p>
+        <p class="sub">Todo mundo que ganhou uma tag de entrada no período (formulário, botão, pesquisa, lista de interesse, download). Cada pessoa conta 1 vez, mesmo com várias tags. Não contam engajamento automático, aulas e certificados, importações de lista e tags de quem já comprou.</p>
         <div class="mini">
           <div class="dest"><span>Pessoas que entraram</span><b id="ac-pess">—</b><small id="ac-entr">—</small></div>
           <div><span>Novas na base</span><b id="ac-novos">—</b><small>primeira vez no Active</small></div>
@@ -244,9 +262,9 @@
       </section>
 
       <div class="grade">
-        <section class="card"><h2>Por tag de entrada</h2>
+        <section class="card"><h2>Por produto</h2>
           <div class="tab"><table>
-            <thead><tr><th>Tag</th><th>Pessoas</th><th>Novas</th></tr></thead>
+            <thead><tr><th>Produto e tags</th><th>Pessoas</th><th>Novas</th></tr></thead>
             <tbody id="t-tags"></tbody>
           </table></div>
         </section>
@@ -362,10 +380,20 @@
     const tb = $('#t-prod');
     const max = Math.max(1, ...d.produtos.map((x) => x.faturamento));
     const cel = (v) => el('td', 'n' + (v ? '' : ' zero'), v == null ? '—' : int.format(v));
-    const pcel = (v, base) => el('td', 'pc' + (base && v ? '' : ' zero'), base ? pct(100 * v / base) : '—');
+    const pcel = (x) => {
+      const ok = x.conversao != null && !d.livre;
+      const td = el('td', 'pc' + (ok && x.conversao ? '' : ' zero'), ok ? pct(x.conversao) : '—');
+      if (ok && x.atendidos) td.append(el('small', 'sub2', int.format(x.com_time || 0) + ' de ' + int.format(x.atendidos)));
+      return td;
+    };
+    const vcel = (x) => {
+      const td = cel(x.vendas);
+      if (!d.livre && x.direto) td.append(el('small', 'sub2', int.format(x.direto) + ' direto no site'));
+      return td;
+    };
     const rows = d.produtos.map((x) => {
       const nomeP = el('td', '', x.produto); if (x.fonte === 'clint') nomeP.append(el('small', 'muted', ' · vendas da Clint'));
-      const tr = el('tr'); tr.append(nomeP, cel(x.leads), cel(x.atendidos), cel(x.vendas), cel(x.cadeiras), pcel(x.vendas, x.leads), pcel(x.vendas, x.atendidos));
+      const tr = el('tr'); tr.append(nomeP, cel(x.leads), cel(x.atendidos), vcel(x), cel(x.cadeiras), pcel(x));
       const td = el('td', 'n' + (x.faturamento ? '' : ' zero')); const w = el('div', 'fat');
       if (x.faturamento) { const bar = el('i'); bar.style.width = Math.round(80 * x.faturamento / max) + 'px'; w.append(bar); }
       w.append(document.createTextNode(fmtFat(x.faturamento))); td.append(w); tr.append(td); return tr;
@@ -374,10 +402,11 @@
       const soma = (k) => d.produtos.reduce((s, x) => s + (x[k] || 0), 0);
       const tot = el('tr', 'total');
       const L = soma('leads'), A = soma('atendidos');
-      tot.append(el('td', '', 'Total'), el('td', 'n', d.livre ? '—' : int.format(L)), el('td', 'n', d.livre ? '—' : int.format(A)), el('td', 'n', int.format(soma('vendas'))), el('td', 'n', int.format(soma('cadeiras'))),
-        d.livre ? el('td', 'pc', '—') : pcel(soma('vendas'), L), d.livre ? el('td', 'pc', '—') : pcel(soma('vendas'), A), el('td', 'n', fmtFat(soma('faturamento'))));
+      const CT = soma('com_time');
+      tot.append(el('td', '', 'Total'), el('td', 'n', d.livre ? '—' : int.format(L)), el('td', 'n', d.livre ? '—' : int.format(A)), vcel({ vendas: soma('vendas'), direto: soma('direto') }), el('td', 'n', int.format(soma('cadeiras'))),
+        pcel({ conversao: A ? Math.round(1000 * CT / A) / 10 : null, com_time: CT, atendidos: A }), el('td', 'n', fmtFat(soma('faturamento'))));
       tb.replaceChildren(...rows, tot);
-    } else { const tr = el('tr'); const td = el('td', 'vazio', 'Nada no período.'); td.colSpan = 8; tr.append(td); tb.replaceChildren(tr); }
+    } else { const tr = el('tr'); const td = el('td', 'vazio', 'Nada no período.'); td.colSpan = 7; tr.append(td); tb.replaceChildren(tr); }
 
     if (!d.livre) $('#equipe').replaceChildren(...d.equipe.map((v) => {
       const c = el('div', 'pessoa'); c.append(el('h3', '', v.nome));
@@ -430,7 +459,10 @@
         { nome: 'Aguardando compra', v: x.aguardando }, { nome: 'Checkout iniciado', v: x.checkout }, { nome: 'Vendas', v: x.vendas, fim: true },
       ];
       const et = el('div', 'etapas'); et.append(...etapas(lista));
-      const cv = el('p', 'conv'); cv.append(document.createTextNode('Conversão: '), el('b', '', taxa(x.vendas, x.leads)), document.createTextNode(' dos leads · '), el('b', '', taxa(x.vendas, x.atendidos)), document.createTextNode(' das conversas'));
+      const cv = el('p', 'conv');
+      if (x.conversao != null) cv.append(document.createTextNode('Conversão: '), el('b', '', pct(x.conversao)), document.createTextNode(' · ' + int.format(x.com_time || 0) + ' dos ' + int.format(x.atendidos) + ' atendidos compraram'));
+      else cv.append(document.createTextNode('Conversão: sem atendimento do time na Clint'));
+      if (x.direto) cv.append(document.createTextNode(' · ' + int.format(x.direto) + (x.direto === 1 ? ' venda direto no site' : ' vendas direto no site')));
       c.append(res, et, cv); return c;
     }));
   }
@@ -474,12 +506,48 @@
     if (agend && !realizadas) notas.push('Sessões realizadas aparecem quando o time registrar a atividade "Reunião" na Clint.');
     $('#ali-nota').textContent = notas.join(' ');
     $('#ali-nota').hidden = !notas.length;
+
+    const V = a.vendedores || [];
+    $('#ali-vend').hidden = !V.length;
+    const COR = { 'Felipe': 'var(--roxo)', 'Letícia': 'var(--laranja)' };
+    $('#ali-leg').replaceChildren(...V.map((v) => { const s = el('span', '', v.nome); s.style.setProperty('--cor', COR[v.nome] || 'var(--fg)'); return s; }));
+    const met = [
+      ['Conversas', (v) => v.conversas, int.format], ['Sessões agendadas', (v) => v.agendamentos, int.format],
+      ['Sessões realizadas', (v) => v.realizadas, int.format], ['No-show', (v) => v.no_show, int.format], null,
+      ['Vendas', (v) => v.vendas, int.format], ['Cadeiras', (v) => v.cadeiras, int.format],
+      ['Valor vendido', (v) => v.valor, (n) => brl0.format(n)], ['Conversão das sessões', (v) => v.conversao, (n) => (n == null ? '—' : pct(n))],
+    ];
+    const cmp = [];
+    met.forEach((m) => {
+      if (!m) { cmp.push(el('div', 'sep')); return; }
+      const [nome, f, fmt] = m, max = Math.max(1, ...V.map((v) => f(v) || 0));
+      const par = el('div', 'par');
+      V.forEach((v) => {
+        const val = f(v), lin = el('div', 'lin' + (val ? '' : ' zero')); lin.style.setProperty('--cor', COR[v.nome] || 'var(--fg)');
+        const tr = el('div'); const bar = el('i'); bar.style.width = (val ? Math.max(2, 100 * val / max) : 0) + '%'; tr.append(bar);
+        lin.title = v.nome; lin.append(tr, el('b', '', fmt(val))); par.append(lin);
+      });
+      cmp.push(el('span', 'nm', nome), par);
+    });
+    $('#ali-cmp').replaceChildren(...cmp);
   }
 
   // ---------- Leads do Active ----------
   const DIA = 864e5;
   const dataDe = (ini, off) => new Date(Date.parse(ini + 'T12:00:00Z') + off * DIA).toISOString().slice(0, 10);
   const offDe = (ini, s) => Math.round((Date.parse(s + 'T12:00:00Z') - Date.parse(ini + 'T12:00:00Z')) / DIA);
+  function prodTag(n) {
+    const s = (n || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (/alian/.test(s)) return 'Aliança';
+    if (/palestra/.test(s)) return 'AH Summit Palestras';
+    if (/gestao-de-pessoas|gestao de pessoas|contratac/.test(s)) return 'Imersão Gestão de Pessoas';
+    if (/gestao|ahgestao/.test(s)) return 'AH Gestão';
+    if (/fvc|vendedor|mkt-vendas|marketing-e-vendas|marketing e vendas/.test(s)) return 'Formação de Vendedor';
+    if (/club/.test(s)) return 'AH Club';
+    if (/summit/.test(s)) return 'AH Summit';
+    if (/reforma/.test(s)) return 'Reforma Tributária';
+    return 'Materiais e outros';
+  }
   function topoDe(a, b, preset) {
     const T = DADOS.topo; if (!T) return null;
     const oa = offDe(T.inicio, a), ob = offDe(T.inicio, b);
@@ -493,10 +561,16 @@
       (porDia[o] = porDia[o] || new Set()).add(c);
     });
     let ja = 0; pess.forEach((c) => { if (!novosSet.has(c)) ja++; });
-    const tags = Object.entries(porTag).map(([t, set]) => {
-      let n = 0; set.forEach((c) => { if (novosSet.has(c)) n++; });
-      return { nome: T.tags[t], pessoas: set.size, novas: n };
-    }).sort((x, y) => y.pessoas - x.pessoas || x.nome.localeCompare(y.nome));
+    // agrupa por produto: a pessoa conta 1 vez no produto, mesmo com várias tags
+    const grupos = {};
+    Object.entries(porTag).forEach(([t, set]) => {
+      const nome = T.tags[t], g = grupos[prodTag(nome)] = grupos[prodTag(nome)] || { nome: prodTag(nome), set: new Set(), tags: [] };
+      set.forEach((c) => g.set.add(c)); g.tags.push([nome, set.size]);
+    });
+    const tags = Object.values(grupos).map((g) => {
+      let n = 0; g.set.forEach((c) => { if (novosSet.has(c)) n++; });
+      return { nome: g.nome, pessoas: g.set.size, novas: n, tags: g.tags.sort((x, y) => y[1] - x[1]) };
+    }).sort((x, y) => (x.nome === 'Materiais e outros') - (y.nome === 'Materiais e outros') || y.pessoas - x.pessoas);
     return { a, b, oa, ob, pessoas: pess.size, entradas, novos: novosSet.size, ja, tags, porDia,
              passagem: preset && T.passagem ? T.passagem[preset] : null, antes: a < T.inicio, inicio: T.inicio, base: T.base_ativa };
   }
@@ -517,7 +591,11 @@
     av.hidden = !tp.antes; av.textContent = tp.antes ? 'Os leads do Active estão guardados a partir de ' + fmtD(tp.inicio) + '. Antes disso o placar mostra só as vendas.' : '';
 
     const cel = (v) => el('td', 'n' + (v ? '' : ' zero'), int.format(v));
-    const rows = tp.tags.map((x) => { const tr = el('tr'); tr.append(el('td', 'tag', x.nome), cel(x.pessoas), cel(x.novas)); return tr; });
+    const rows = tp.tags.map((x) => {
+      const tr = el('tr'), nm = el('td', 'tag', x.nome);
+      nm.append(el('small', 'tg', x.tags.map(([t, n]) => t + (x.tags.length > 1 ? ' (' + n + ')' : '')).join(' · ')));
+      tr.append(nm, cel(x.pessoas), cel(x.novas)); return tr;
+    });
     if (!rows.length) { const tr = el('tr'); const td = el('td', 'vazio', 'Ninguém ganhou tag de entrada no período.'); td.colSpan = 3; tr.append(td); rows.push(tr); }
     $('#t-tags').replaceChildren(...rows);
 

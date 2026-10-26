@@ -59,14 +59,22 @@ def plano():
             {**q({"measures": ["TrackStage.changeStage"], "dimensions": ["Origin.name", "TrackStage.stage"],
                   "timeDimensions": [{"dimension": "TrackStage.date", "dateRange": dr}], "limit": 1000}), "salvar": f"{p}_etapas.json", "o_que": "payload.data"},
             {**q({"measures": ["DealActivity.meetingScheduledActivities", "DealActivity.meetingActivities", "DealActivity.noShowActivities",
-                               "DealActivity.meetingRescheduledActivities"], "dimensions": ["Origin.name"],
+                               "DealActivity.meetingRescheduledActivities"], "dimensions": ["Origin.name", "DealActivity.userId"],
                   "filters": [{"member": "Origin.name", "operator": "contains", "values": ["lian"]}],
                   "timeDimensions": [{"dimension": "DealActivity.completedAt", "dateRange": dr}], "limit": 50}), "salvar": f"{p}_reunioes.json", "o_que": "payload.data"},
-            {**q({"measures": ["TrackStatus.changeStatus"], "dimensions": ["TrackStatus.dealId", "Deal.value", "Origin.name", "Contact.email", "Contact.name"],
+            {**q({"measures": ["TrackStatus.changeStatus"], "dimensions": ["TrackStatus.dealId", "Deal.value", "Origin.name", "Contact.email", "Contact.name", "User.name"],
                   "filters": [{"member": "TrackStatus.category", "operator": "equals", "values": ["DEAL_UPDATE_STATUS"]},
                               {"member": "TrackStatus.statusLabel", "operator": "equals", "values": ["Ganho"]},
                               {"member": "Origin.name", "operator": "contains", "values": ["lian"]}],
                   "timeDimensions": [{"dimension": "TrackStatus.date", "dateRange": dr}], "limit": 500}), "salvar": f"{p}_ganhos_alianca.json", "o_que": "payload.data"},
+            {**q({"measures": ["Chat.count"], "dimensions": ["Origin.name"],
+                  "filters": atend + [{"member": "Origin.name", "operator": "startsWith", "values": ["Compras aprovadas"]},
+                                      {"member": "Deal.createdAt", "operator": "inDateRange", "values": dr}],
+                  "timeDimensions": [{"dimension": "Message.createdAt", "dateRange": [(dt.date.fromisoformat(a) - dt.timedelta(days=30)).isoformat(), b]}],
+                  "limit": 100}), "salvar": f"{p}_compradores_time.json", "o_que": "payload.data"},
+            {**q({"measures": ["Chat.count"], "dimensions": ["User.name"],
+                  "filters": atend + [{"member": "Origin.name", "operator": "contains", "values": ["lian"]}],
+                  "timeDimensions": [{"dimension": "Message.createdAt", "dateRange": dr}], "limit": 20}), "salvar": f"{p}_ali_conversas.json", "o_que": "payload.data"},
             {"tool": "ActiveCampaign list_contacts", "args": {"params": {"filters": {"created_after": f"{a}T00:00:00-03:00",
                  "created_before": f"{(dt.date.fromisoformat(b) + dt.timedelta(days=1)).isoformat()}T00:00:00-03:00"}, "limit": 1}},
              "salvar": f"{p}_leads.json", "o_que": "{\"total\": meta.total}"},
@@ -185,6 +193,10 @@ def montar():
             if not nome or nome.lower().startswith(NAO_LEAD):
                 continue
             linha(produto(nome, True))["atendidos"] += int(num(r.get("Chat.count")))
+        # conversão: quem comprou no período e conversou com o time (até 30 dias antes) / pessoas atendidas
+        for r in ler(f"{p}_compradores_time.json", []) or []:
+            pn = produto(r.get("Origin.name"), True)
+            x = linha(pn); x["com_time"] = x.get("com_time", 0) + int(num(r.get("Chat.count")))
         pagamentos = {}
         for v in vs:
             pg = {"Cartão de Crédito": "Cartão", "Pix": "Pix", "Boleto": "Boleto"}.get(v["pagamento"], "Outro")
@@ -224,6 +236,15 @@ def montar():
             x = linha("Aliança")
             x.update({"vendas": ali["vendas"], "faturamento": ali["valor"], "cadeiras": ali.get("cadeiras") or 0, "fonte": "clint"})
             extra_ali = ali["valor"]
+        if por_prod.get("Aliança"):
+            por_prod["Aliança"]["com_time"] = por_prod["Aliança"]["vendas"]  # Aliança só vende por sessão com o time
+        for x in por_prod.values():
+            x["com_time"] = min(x.get("com_time", 0), x["vendas"]) if x["vendas"] else x.get("com_time", 0)
+            x["direto"] = max(0, x["vendas"] - x.get("com_time", 0))
+            x["conversao"] = round(100 * x["com_time"] / x["atendidos"], 1) if x["atendidos"] else None
+        for fx in foco:
+            src = por_prod.get(fx["produto"]) or {}
+            fx.update({k: src.get(k) for k in ("com_time", "direto", "conversao")})
         out["periodos"][p] = {
             "rotulo": ROTULO[p], "de": a, "ate": b,
             "faturamento": round(fat, 2), "vendas": len(vs),
@@ -324,12 +345,23 @@ def funis(p, por_prod):
                      "não avançou após a sessão estratégica": "nao_avancou"}.get(st)
             if chave:
                 a[chave] += n
+    vend = {nome: {"nome": nome, "conversas": 0, "agendamentos": 0, "realizadas": 0, "no_show": 0, "vendas": 0,
+                   "valor": 0.0, "sem_valor": 0, "cadeiras": 0} for _, nome, _ in VENDEDORES}
+    for r in ler(f"{p}_ali_conversas.json", []) or []:
+        q_ = quem(r.get("User.name"))
+        if q_:
+            vend[q_]["conversas"] += int(num(r.get("Chat.count")))
     for r in ler(f"{p}_reunioes.json", []) or []:
+        q_ = quem(r.get("DealActivity.userId"))
+        if q_:
+            vend[q_]["agendamentos"] += int(num(r.get("DealActivity.meetingScheduledActivities")))
+            vend[q_]["realizadas"] += int(num(r.get("DealActivity.meetingActivities")))
+            vend[q_]["no_show"] += int(num(r.get("DealActivity.noShowActivities")))
         a["agendamentos"] += int(num(r.get("DealActivity.meetingScheduledActivities")))
         a["reagendamentos"] += int(num(r.get("DealActivity.meetingRescheduledActivities")))
         a["realizadas"] += int(num(r.get("DealActivity.meetingActivities")))
         a["no_show"] += int(num(r.get("DealActivity.noShowActivities")))
-    vistos, cad = {}, {}
+    vistos, cad, dono = {}, {}, {}
     mapa = mentoria()
     for r in ler(f"{p}_ganhos_alianca.json", []) or []:
         if r.get("TrackStatus.dealId"):
@@ -340,6 +372,16 @@ def funis(p, por_prod):
                 n = mapa.get(chave("e", r.get("Contact.email"))) or mapa.get(chave("n", r.get("Contact.name"))) \
                     or mapa.get(chave("n", (r.get("Contact.name") or "").split(" - ")[0]))
             cad[r["TrackStatus.dealId"]] = n
+            dono[r["TrackStatus.dealId"]] = quem(r.get("User.name"))
+    for d_, v_ in vistos.items():
+        q_ = dono.get(d_)
+        if q_:
+            vend[q_]["vendas"] += 1; vend[q_]["valor"] += v_; vend[q_]["sem_valor"] += 0 if v_ else 1
+            vend[q_]["cadeiras"] += (cad.get(d_) or 1)
+    for x in vend.values():
+        x["valor"] = round(x["valor"], 2)
+        x["conversao"] = round(100 * x["vendas"] / x["agendamentos"], 1) if x["agendamentos"] else None
+    a["vendedores"] = list(vend.values())
     a["vendas"] = len(vistos)
     a["cadeiras"] = sum(n or 1 for n in cad.values()) if mapa is not None else None
     a["fora_planilha"] = sum(1 for n in cad.values() if not n) if mapa is not None else None
