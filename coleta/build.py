@@ -62,7 +62,7 @@ def plano():
                                "DealActivity.meetingRescheduledActivities"], "dimensions": ["Origin.name"],
                   "filters": [{"member": "Origin.name", "operator": "contains", "values": ["lian"]}],
                   "timeDimensions": [{"dimension": "DealActivity.completedAt", "dateRange": dr}], "limit": 50}), "salvar": f"{p}_reunioes.json", "o_que": "payload.data"},
-            {**q({"measures": ["TrackStatus.changeStatus"], "dimensions": ["TrackStatus.dealId", "Deal.value", "Origin.name"],
+            {**q({"measures": ["TrackStatus.changeStatus"], "dimensions": ["TrackStatus.dealId", "Deal.value", "Origin.name", "Contact.email", "Contact.name"],
                   "filters": [{"member": "TrackStatus.category", "operator": "equals", "values": ["DEAL_UPDATE_STATUS"]},
                               {"member": "TrackStatus.statusLabel", "operator": "equals", "values": ["Ganho"]},
                               {"member": "Origin.name", "operator": "contains", "values": ["lian"]}],
@@ -222,7 +222,7 @@ def montar():
         x = por_prod.get("Aliança")
         if ali["vendas"] and (not x or not x["vendas"]):
             x = linha("Aliança")
-            x.update({"vendas": ali["vendas"], "faturamento": ali["valor"], "cadeiras": 0, "fonte": "clint"})
+            x.update({"vendas": ali["vendas"], "faturamento": ali["valor"], "cadeiras": ali.get("cadeiras") or 0, "fonte": "clint"})
             extra_ali = ali["valor"]
         out["periodos"][p] = {
             "rotulo": ROTULO[p], "de": a, "ate": b,
@@ -258,6 +258,19 @@ def montar():
         out["serie"].append({"dia": d.isoformat(), "vendas": len(vs), "faturamento": round(sum(v["valor"] for v in vs), 2)})
         d += dt.timedelta(days=1)
     return out
+
+
+_MENTORIA = []
+
+
+def mentoria():
+    """Mapa (hash de e-mail/nome -> pessoas da empresa) da base da mentoria, se existir."""
+    if not _MENTORIA:
+        f = os.path.join(AQUI, "mentoria.enc.json")
+        chave = os.environ.get("PLACAR_CHAVE")
+        _MENTORIA.append(decifrar(json.load(open(f)), chave)["mapa"] if os.path.exists(f) and chave else None)
+        sys.path.insert(0, AQUI)
+    return _MENTORIA[0]
 
 
 def funis(p, por_prod):
@@ -301,11 +314,20 @@ def funis(p, por_prod):
         a["reagendamentos"] += int(num(r.get("DealActivity.meetingRescheduledActivities")))
         a["realizadas"] += int(num(r.get("DealActivity.meetingActivities")))
         a["no_show"] += int(num(r.get("DealActivity.noShowActivities")))
-    vistos = {}
+    vistos, cad = {}, {}
+    mapa = mentoria()
     for r in ler(f"{p}_ganhos_alianca.json", []) or []:
         if r.get("TrackStatus.dealId"):
             vistos[r["TrackStatus.dealId"]] = num(r.get("Deal.value")) / 100
+            n = None
+            if mapa is not None:
+                from mentoria import chave
+                n = mapa.get(chave("e", r.get("Contact.email"))) or mapa.get(chave("n", r.get("Contact.name"))) \
+                    or mapa.get(chave("n", (r.get("Contact.name") or "").split(" - ")[0]))
+            cad[r["TrackStatus.dealId"]] = n
     a["vendas"] = len(vistos)
+    a["cadeiras"] = sum(n or 1 for n in cad.values()) if mapa is not None else None
+    a["fora_planilha"] = sum(1 for n in cad.values() if not n) if mapa is not None else None
     a["valor"] = round(sum(vistos.values()), 2)
     a["sem_valor"] = sum(1 for v in vistos.values() if not v)
     for pn in f:

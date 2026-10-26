@@ -465,11 +465,12 @@
       ['Ticket médio', a.vendas - a.sem_valor > 0 ? brl0.format(a.valor / (a.vendas - a.sem_valor)) : '—'],
       ['Conversão das sessões', taxa(a.vendas, agend)],
       ['Conversão das inscrições', taxa(a.vendas, a.inscricoes)],
-      ['Cadeiras', 'em breve'],
+      ['Cadeiras', a.cadeiras == null ? 'em breve' : int.format(a.cadeiras)],
     ];
     $('#ali-res').replaceChildren(...linhas.map(([x, y]) => { const r = el('div'); r.append(el('span', '', x), el('b', '', y)); return r; }));
     const notas = [];
     if (a.sem_valor) notas.push(a.sem_valor + (a.sem_valor === 1 ? ' venda está' : ' vendas estão') + ' sem valor preenchido na Clint.');
+    if (a.fora_planilha) notas.push(a.fora_planilha + (a.fora_planilha === 1 ? ' venda não está' : ' vendas não estão') + ' na base da mentoria ainda; contei 1 cadeira para cada.');
     if (agend && !realizadas) notas.push('Sessões realizadas aparecem quando o time registrar a atividade "Reunião" na Clint.');
     $('#ali-nota').textContent = notas.join(' ');
     $('#ali-nota').hidden = !notas.length;
