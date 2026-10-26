@@ -1,1 +1,315 @@
-<!doctype html><meta charset="utf-8"><title>Placar AH</title><p>Placar em construção.</p>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Placar Comercial AH</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Placar: painel escuro de estádio, números em letra condensada, luz âmbar só no que importa */
+  :root {
+    --bg: #0d141f;
+    --panel: #142030;
+    --panel-2: #1a2a3e;
+    --line: #24364d;
+    --fg: #eef2f7;
+    --muted: #8fa1b8;
+    --amber: #f3b23c;
+    --amber-soft: rgba(243, 178, 60, .16);
+    --teal: #4fc3c7;
+    --red: #ef6b6b;
+    --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; -webkit-font-smoothing: antialiased; }
+  body { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: max(20px, env(safe-area-inset-top, 0px)) 40px; }
+  .wrap { max-width: 1120px; margin-inline: auto; display: flex; flex-direction: column; gap: 28px; }
+  .num { font-family: var(--display); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+  h1, h2 { margin: 0; font-weight: 600; text-wrap: balance; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); font-weight: 600; }
+  .muted { color: var(--muted); }
+
+  /* login */
+  .login { min-height: 80vh; display: grid; place-items: center; }
+  .login form { width: min(100%, 360px); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 28px; display: flex; flex-direction: column; gap: 14px; }
+  .login .marca { font-family: var(--display); font-size: 34px; font-weight: 700; line-height: 1; }
+  .login .marca span { color: var(--amber); }
+  .login label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+  .login input[type=text], .login input[type=password] { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 11px 12px; }
+  .login input:focus-visible, button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+  .login .lembrar { flex-direction: row; align-items: center; gap: 8px; }
+  .login button { font: inherit; font-weight: 600; background: var(--amber); color: #1a1205; border: 0; border-radius: 8px; padding: 12px; cursor: pointer; }
+  .login button[disabled] { opacity: .6; cursor: wait; }
+  .erro { color: var(--red); font-size: 13px; min-height: 1.2em; margin: 0; }
+
+  /* topo */
+  .topo { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; justify-content: space-between; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
+  .topo h1 { font-family: var(--display); font-size: clamp(32px, 6vw, 46px); font-weight: 700; line-height: .95; }
+  .topo h1 span { color: var(--amber); }
+  .topo p { margin: 6px 0 0; font-size: 13px; }
+  .abas { display: flex; flex-wrap: wrap; gap: 6px; }
+  .abas button { font: inherit; font-size: 13px; font-weight: 500; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+  .abas button[aria-pressed=true] { background: var(--amber); color: #1a1205; border-color: var(--amber); }
+  .sair { font: inherit; font-size: 12px; color: var(--muted); background: none; border: 0; text-decoration: underline; cursor: pointer; padding: 0; }
+
+  /* placar principal */
+  .placar { display: grid; grid-template-columns: 1.4fr repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .placar > div { background: var(--panel); padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .placar .rot { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+  .placar .val { font-family: var(--display); font-weight: 600; font-size: clamp(30px, 4.4vw, 42px); line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .placar .principal { background: linear-gradient(180deg, var(--amber-soft), transparent 70%), var(--panel); }
+  .placar .principal .val { color: var(--amber); font-size: clamp(38px, 6vw, 58px); }
+  .placar .nota { font-size: 12px; color: var(--muted); }
+  @media (max-width: 860px) { .placar { grid-template-columns: repeat(2, 1fr); } .placar .principal { grid-column: 1 / -1; } }
+
+  .grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .card .sub { margin: -8px 0 0; font-size: 12px; color: var(--muted); }
+
+  /* tabela de produtos */
+  .tab { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: right; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 0 10px 10px; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; padding-left: 0; }
+  td { text-align: right; padding: 11px 10px; border-top: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.n { font-family: var(--display); font-size: 19px; font-weight: 600; }
+  td.zero { color: var(--muted); opacity: .55; }
+  tr.total td { border-top: 2px solid var(--muted); font-weight: 600; }
+  .fat { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+  .fat i { display: block; height: 6px; border-radius: 3px; background: var(--amber); min-width: 2px; }
+
+  /* gráfico */
+  .grafico { position: relative; }
+  .grafico svg { display: block; width: 100%; height: auto; }
+  .dica { position: absolute; pointer-events: none; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 12px; white-space: nowrap; transform: translate(-50%, -110%); }
+  .dica b { font-family: var(--display); font-size: 16px; color: var(--amber); }
+
+  /* equipe */
+  .vend { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; }
+  .pessoa { background: var(--panel-2); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .pessoa h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .stats div { display: flex; flex-direction: column; }
+  .stats span { font-size: 11px; color: var(--muted); }
+  .stats b { font-family: var(--display); font-size: 24px; font-weight: 600; line-height: 1.1; }
+  .stats b.alto { color: var(--red); }
+
+  .linhas { display: flex; flex-direction: column; gap: 10px; }
+  .linhas div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .linhas div:first-child { border-top: 0; padding-top: 0; }
+  .linhas b { font-family: var(--display); font-size: 22px; font-weight: 600; }
+
+  .rodape { font-size: 12px; color: var(--muted); line-height: 1.55; max-width: 75ch; }
+  .vazio { color: var(--muted); font-size: 13px; }
+  @media (prefers-reduced-motion: no-preference) { .placar .val, td.n { transition: color .2s; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="login" id="tela-login">
+    <form id="form-login" autocomplete="on">
+      <div class="marca">Placar <span>AH</span></div>
+      <p class="muted" style="margin:0;font-size:13px">Números comerciais da AH Educação, atualizados de hora em hora.</p>
+      <label for="login">Login<input id="login" name="username" type="text" autocomplete="username" required></label>
+      <label for="senha">Senha<input id="senha" name="password" type="password" autocomplete="current-password" required></label>
+      <label class="lembrar" for="lembrar"><input id="lembrar" type="checkbox" checked> Lembrar neste aparelho</label>
+      <button id="entrar" type="submit">Entrar</button>
+      <p class="erro" id="erro" role="alert"></p>
+    </form>
+  </section>
+
+  <main id="painel" hidden>
+    <div class="wrap">
+      <header class="topo">
+        <div>
+          <h1>Placar comercial <span>AH</span></h1>
+          <p class="muted">Atualizado <span id="atualizado">—</span> · <button class="sair" id="sair" type="button">sair</button></p>
+        </div>
+        <div class="abas" role="group" aria-label="Período">
+          <button type="button" data-p="hoje">Hoje</button>
+          <button type="button" data-p="ontem">Ontem</button>
+          <button type="button" data-p="7d">7 dias</button>
+          <button type="button" data-p="mes">Este mês</button>
+        </div>
+      </header>
+
+      <section class="placar" aria-label="Resumo">
+        <div class="principal"><span class="rot">Faturamento</span><span class="val" id="k-fat">—</span><span class="nota" id="k-per">—</span></div>
+        <div><span class="rot">Vendas</span><span class="val" id="k-vendas">—</span><span class="nota">compras aprovadas</span></div>
+        <div><span class="rot">Ticket médio</span><span class="val" id="k-ticket">—</span><span class="nota">por venda</span></div>
+        <div><span class="rot">Leads novos</span><span class="val" id="k-leads">—</span><span class="nota">contatos novos no Active</span></div>
+        <div><span class="rot">Atendidos</span><span class="val" id="k-atend">—</span><span class="nota">conversas do time</span></div>
+      </section>
+
+      <section class="card">
+        <h2>Por produto</h2>
+        <p class="sub">Leads: entradas nos funis da Clint. Atendidos: conversas do time com pessoas desse produto (quem está em dois funis conta nos dois).</p>
+        <div class="tab"><table>
+          <thead><tr><th>Produto</th><th>Leads</th><th>Atendidos</th><th>Vendas</th><th>Faturamento</th></tr></thead>
+          <tbody id="t-prod"></tbody>
+        </table></div>
+      </section>
+
+      <section class="card">
+        <h2>Faturamento por dia no mês</h2>
+        <div class="grafico" id="grafico"></div>
+      </section>
+
+      <section class="card">
+        <h2>Time comercial</h2>
+        <p class="sub">"Esperando" e "24h vencida" contam todas as conversas abertas agora, não só as do período.</p>
+        <div class="vend" id="equipe"></div>
+      </section>
+
+      <div class="grade">
+        <section class="card"><h2>Forma de pagamento</h2><div class="linhas" id="pagamentos"></div></section>
+        <section class="card"><h2>E-mails do período</h2><div class="linhas" id="emails"></div></section>
+      </div>
+
+      <p class="rodape">Vendas vêm da Guru pela integração com a Clint, então só entram produtos integrados lá. Leads e e-mails vêm do Active Campaign; atendimento, da Clint. Horários de Brasília.</p>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+  const brl0 = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+  const int = new Intl.NumberFormat('pt-BR');
+  const pct = (v) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(v) + '%';
+  const tempo = (m) => m == null ? '—' : m < 60 ? (m < 10 ? m.toFixed(1).replace('.', ',') : Math.round(m)) + ' min' : Math.floor(m / 60) + 'h' + String(Math.round(m % 60)).padStart(2, '0');
+  const LS = 'placar-ah-chave';
+  let DADOS = null, P = 'hoje';
+
+  const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  async function abrir(chave) {
+    const r = await fetch('data.enc.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('Não consegui carregar os dados agora. Tente de novo em instantes.');
+    const e = await r.json();
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(chave), 'PBKDF2', false, ['deriveKey']);
+    const k = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: b64(e.sal), iterations: e.it, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    let txt;
+    try { txt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(e.iv) }, k, b64(e.dados)); }
+    catch (_) { throw new Error('Login ou senha incorretos.'); }
+    return JSON.parse(new TextDecoder().decode(txt));
+  }
+
+  function guardar(chave) { try { localStorage.setItem(LS, chave); } catch (_) {} }
+  function lida() { try { return localStorage.getItem(LS); } catch (_) { return null; } }
+  function esquecer() { try { localStorage.removeItem(LS); } catch (_) {} }
+
+  async function entrar(chave, lembrar) {
+    DADOS = await abrir(chave);
+    if (lembrar) guardar(chave);
+    $('#tela-login').hidden = true;
+    $('#painel').hidden = false;
+    desenhar();
+  }
+
+  $('#form-login').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const bt = $('#entrar'); bt.disabled = true; bt.textContent = 'Abrindo…'; $('#erro').textContent = '';
+    try { await entrar($('#login').value.trim() + ':' + $('#senha').value, $('#lembrar').checked); }
+    catch (e) { $('#erro').textContent = e.message; }
+    finally { bt.disabled = false; bt.textContent = 'Entrar'; }
+  });
+  $('#sair').addEventListener('click', () => { esquecer(); location.reload(); });
+  document.querySelectorAll('.abas button').forEach((b) => b.addEventListener('click', () => { P = b.dataset.p; desenhar(); }));
+
+  const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+
+  function desenhar() {
+    const d = DADOS.periodos[P];
+    $('#atualizado').textContent = DADOS.atualizado;
+    document.querySelectorAll('.abas button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.p === P)));
+    const fmtD = (s) => s.slice(8, 10) + '/' + s.slice(5, 7);
+    $('#k-per').textContent = d.de === d.ate ? fmtD(d.de) : fmtD(d.de) + ' a ' + fmtD(d.ate);
+    $('#k-fat').textContent = brl.format(d.faturamento);
+    $('#k-vendas').textContent = int.format(d.vendas);
+    $('#k-ticket').textContent = d.vendas ? brl0.format(d.ticket) : '—';
+    $('#k-leads').textContent = int.format(d.leads_active);
+    $('#k-atend').textContent = int.format(d.atendidos);
+
+    // produtos
+    const tb = $('#t-prod');
+    const max = Math.max(1, ...d.produtos.map((x) => x.faturamento));
+    const rows = d.produtos.map((x) => {
+      const tr = el('tr');
+      tr.append(el('td', '', x.produto));
+      [['leads', int], ['atendidos', int], ['vendas', int]].forEach(([k, f]) => tr.append(el('td', 'n' + (x[k] ? '' : ' zero'), f.format(x[k]))));
+      const td = el('td', 'n' + (x.faturamento ? '' : ' zero'));
+      const w = el('div', 'fat'); const bar = el('i'); bar.style.width = Math.round(80 * x.faturamento / max) + 'px';
+      w.append(x.faturamento ? bar : document.createTextNode(''), document.createTextNode(brl.format(x.faturamento))); td.append(w); tr.append(td);
+      return tr;
+    });
+    const tot = el('tr', 'total');
+    const soma = (k) => d.produtos.reduce((s, x) => s + x[k], 0);
+    tot.append(el('td', '', 'Total'), el('td', 'n', int.format(soma('leads'))), el('td', 'n', int.format(soma('atendidos'))), el('td', 'n', int.format(d.vendas)), el('td', 'n', brl.format(d.faturamento)));
+    tb.replaceChildren(...(rows.length ? rows.concat(tot) : [Object.assign(el('tr'), { innerHTML: '' })]));
+    if (!rows.length) { const tr = el('tr'); const td = el('td', 'vazio', 'Nada no período ainda.'); td.colSpan = 5; tr.append(td); tb.replaceChildren(tr); }
+
+    // equipe
+    $('#equipe').replaceChildren(...d.equipe.map((v) => {
+      const c = el('div', 'pessoa'); c.append(el('h3', '', v.nome));
+      const s = el('div', 'stats');
+      const st = (lab, val, alto) => { const x = el('div'); x.append(el('span', '', lab), el('b', alto ? 'alto' : '', val)); s.append(x); };
+      st('Pessoas atendidas', int.format(v.atendidos));
+      st('Mensagens enviadas', int.format(v.mensagens));
+      st('Tempo de resposta', tempo(v.resposta_min), v.resposta_min != null && v.resposta_min > 30);
+      st('Ligações', int.format(v.ligacoes));
+      st('Esperando resposta', int.format(v.esperando), v.esperando > 50);
+      st('24h vencida', int.format(v.janela_vencida), v.janela_vencida > 0);
+      c.append(s); return c;
+    }));
+
+    // pagamentos
+    const pg = $('#pagamentos');
+    pg.replaceChildren(...(d.pagamentos.length ? d.pagamentos.map((x) => { const r = el('div'); r.append(el('span', '', x.forma + ' · ' + int.format(x.vendas) + (x.vendas === 1 ? ' venda' : ' vendas')), el('b', '', brl.format(x.valor))); return r; }) : [el('p', 'vazio', 'Nenhuma venda no período.')]));
+
+    // e-mails
+    const em = d.emails;
+    const linhas = [['Envios', int.format(em.envios)], ['Abertura', pct(em.abertura)], ['Cliques', int.format(em.cliques) + ' (' + pct(em.clique) + ')'], ['Descadastros', int.format(em.descadastros)]];
+    $('#emails').replaceChildren(...linhas.map(([a, b]) => { const r = el('div'); r.append(el('span', '', a), el('b', '', b)); return r; }));
+
+    grafico();
+  }
+
+  function grafico() {
+    const box = $('#grafico');
+    const s = DADOS.serie;
+    const W = Math.max(300, box.clientWidth || 600), H = 220, m = { t: 14, r: 8, b: 26, l: 8 };
+    const max = Math.max(1, ...s.map((x) => x.faturamento));
+    const bw = (W - m.l - m.r) / s.length;
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', '100%');
+    const mk = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+    svg.append(mk('line', { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, stroke: '#24364d' }));
+    const dica = el('div', 'dica'); dica.hidden = true;
+    s.forEach((x, i) => {
+      const h = (H - m.t - m.b) * x.faturamento / max;
+      const xx = m.l + i * bw + bw * 0.18, w = Math.max(2, bw * 0.64);
+      const r = mk('rect', { x: xx, y: H - m.b - Math.max(h, x.faturamento ? 2 : 0), width: w, height: Math.max(h, x.faturamento ? 2 : 0), rx: Math.min(4, w / 2), fill: x.faturamento ? '#f3b23c' : 'none' });
+      const hit = mk('rect', { x: m.l + i * bw, y: m.t, width: bw, height: H - m.t - m.b, fill: 'transparent' });
+      hit.addEventListener('mouseenter', () => { dica.hidden = false; dica.style.left = (xx + w / 2) / W * 100 + '%'; dica.style.top = ((H - m.b - h) / H * 100) + '%'; dica.replaceChildren(document.createTextNode(x.dia.slice(8, 10) + '/' + x.dia.slice(5, 7) + ' · '), el('b', '', brl0.format(x.faturamento)), document.createTextNode(' · ' + x.vendas + (x.vendas === 1 ? ' venda' : ' vendas'))); r.setAttribute('fill', x.faturamento ? '#ffd27a' : 'none'); });
+      hit.addEventListener('mouseleave', () => { dica.hidden = true; r.setAttribute('fill', x.faturamento ? '#f3b23c' : 'none'); });
+      svg.append(r, hit);
+      const dia = +x.dia.slice(8, 10);
+      if (dia === 1 || dia % 5 === 0) { const t = mk('text', { x: m.l + i * bw + bw / 2, y: H - 8, 'text-anchor': 'middle', 'font-size': 11, fill: '#8fa1b8' }); t.textContent = dia; svg.append(t); }
+    });
+    box.replaceChildren(svg, dica);
+  }
+  window.addEventListener('resize', () => { if (DADOS) grafico(); });
+
+  // entra direto se o aparelho lembra a senha
+  const salva = lida();
+  if (salva) entrar(salva, true).catch(() => esquecer());
+})();
+</script>
+</body>
+</html>
