@@ -7,7 +7,7 @@ Uso:
 
 PLACAR_CHAVE = "login:senha" (a mesma que a página pede). Nunca grave a chave no repositório.
 """
-import base64, json, os, sys, datetime as dt
+import base64, json, os, re, sys, datetime as dt
 from zoneinfo import ZoneInfo
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -260,6 +260,21 @@ def montar():
     return out
 
 
+# ---------- tags do Active que NÃO são entrada de lead ----------
+ENGAJAMENTO = {"engajado", "atividade recente", "não engajado", "nao engajado", "inativo"}
+NAO_ENTRADA = re.compile(
+    r"^(enrollment|start|finish|completed|certificate|payment_\w+|\d+_pct)-"   # plataforma de aulas
+    r"|^member_"                                                               # entrada/saída/importação de membros
+    r"|^compra-aprovada|^comprou|^compradores|cancelad"                        # quem já comprou ou cancelou
+    r"|data de importa|c[oó]digo fonte|tag fantasma|disparo crm|check-in"      # importações e listas internas
+    r"|^mentorandos|^leads-presentes|ja-faz-um-tempo|nunca-acessou|l2quente", re.I)
+
+
+def barulho(nome):
+    n = (nome or "").strip().lower()
+    return n in ENGAJAMENTO or n == "typeform-integration" or bool(NAO_ENTRADA.search(n))
+
+
 _MENTORIA = []
 
 
@@ -342,6 +357,7 @@ def topo(iv):
         return None
     inicio = dt.date.fromisoformat("2026-01-01")
     off = lambda d: (dt.date.fromisoformat(d) - inicio).days
+    ac["linhas"] = [l for l in ac["linhas"] if not barulho(ac["tags"].get(str(l[2])))]
     usadas = sorted({l[2] for l in ac["linhas"]})
     idx = {t: i for i, t in enumerate(usadas)}
     nomes = [ac["tags"].get(str(t), f"tag {t}") for t in usadas]

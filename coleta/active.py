@@ -20,13 +20,8 @@ CACHE = os.path.join(AQUI, "active_cache.enc.json")
 TZ = ZoneInfo("America/Sao_Paulo")
 INICIO = "2026-01-01"  # histórico guardado a partir daqui
 
-ENGAJAMENTO = {"engajado", "atividade recente", "não engajado", "nao engajado", "inativo"}
-PLATAFORMA = re.compile(r"^(enrollment|start|finish|completed|\d+_pct)-|^member_(entered|left)_group-", re.I)
-
-
-def barulho(nome):
-    n = (nome or "").strip().lower()
-    return n in ENGAJAMENTO or bool(PLATAFORMA.match(n)) or n == "typeform-integration"
+sys.path.insert(0, AQUI)
+from build import barulho  # a regra do que não é lead fica num lugar só
 
 
 def get(path, params=None):
