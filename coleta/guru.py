@@ -86,9 +86,17 @@ def baixar(desde="2025-01-01"):
     from zoneinfo import ZoneInfo
     hoje = dt.datetime.now(ZoneInfo("America/Sao_Paulo")).date()
     ini = desde
-    st, ultimo, itens = todas({"confirmed_at_ini": ini, "confirmed_at_end": hoje.isoformat()})
-    if st != 200:
-        sys.exit(f"Guru respondeu {st}: {json.dumps(ultimo)[:300]}")
+    # a API aceita no máximo 180 dias por consulta: busca em janelas de 90 dias
+    itens, a = [], dt.date.fromisoformat(desde)
+    while a <= hoje:
+        b = min(a + dt.timedelta(days=89), hoje)
+        st, ultimo, parte = todas({"confirmed_at_ini": a.isoformat(), "confirmed_at_end": b.isoformat()})
+        if st != 200:
+            sys.exit(f"Guru respondeu {st} ({a} a {b}): {json.dumps(ultimo)[:300]}")
+        itens += parte
+        a = b + dt.timedelta(days=1)
+    vistos = set()
+    itens = [t for t in itens if not (t.get("id") in vistos or vistos.add(t.get("id")))]
     out = []
     for t in itens:
         pay = t.get("payment") or {}
