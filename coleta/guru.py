@@ -101,7 +101,13 @@ def baixar(desde="2025-01-01"):
     for t in itens:
         pay = t.get("payment") or {}
         prod = t.get("product") or {}
-        out.append({"id": t.get("id"), "status": t.get("status"),
+        tr = t.get("trackings") or {}
+        pp = tr.get("pptc") or {}
+        out.append({"origem": pp.get("tracking_name") or "", "fonte": tr.get("utm_source") or "",
+                    "campanha": pp.get("utm_campaign") or tr.get("utm_campaign") or "",
+                    "meio": pp.get("utm_medium") or tr.get("utm_medium") or "",
+                    "checkout": pp.get("checkout_name") or ""})
+        out[-1].update({"id": t.get("id"), "status": t.get("status"),
                     "confirmado": (t.get("dates") or {}).get("confirmed_at"),
                     "valor": pay.get("total") or 0, "metodo": pay.get("method") or "",
                     "parcelas": ((pay.get("installments") or {}).get("qty")) or 1,

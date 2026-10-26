@@ -166,6 +166,8 @@
   #sec-alianca .etapa .br { background: rgba(255, 210, 31, .12); }
   #sec-alianca .etapa.fim .br i { background: #ffffff; }
   #sec-alianca .linhas b { color: #ffd21f; }
+  #org-canais .etapa { grid-template-columns: minmax(96px, 34%) 1fr 16ch; }
+  #org-canais .etapa .vl small { display: block; margin: 0; }
   .vendas-split { display: flex; flex-wrap: wrap; gap: 6px; }
   .pill { font-size: 12px; border-radius: 999px; padding: 3px 10px; background: var(--panel); border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
   .pill b { color: var(--fg); font-family: var(--display); font-size: 15px; margin-right: 3px; }
@@ -234,6 +236,17 @@
       <section class="card">
         <h2 id="t-graf">Faturamento por dia</h2>
         <div class="grafico" id="grafico"></div>
+      </section>
+
+      <section class="card" id="sec-origem">
+        <h2>De onde vieram as vendas</h2>
+        <p class="sub">Pelo rastreamento da Guru. "Link do time comercial" é o link de checkout que o vendedor manda; "Anúncios" são vendas com campanha (UTM) de tráfego pago; "Sem rastreio" é venda que chegou sem link rastreado.</p>
+        <div class="grade">
+          <div class="funil"><h3>Por origem</h3><div class="etapas" id="org-canais"></div></div>
+          <div class="funil"><h3>Campanhas de anúncio que venderam</h3>
+            <div class="tab"><table><thead><tr><th>Campanha</th><th>Vendas</th><th><span class="l">Faturamento</span><span class="c">Fat.</span></th></tr></thead><tbody id="org-camp"></tbody></table></div>
+          </div>
+        </div>
       </section>
 
       <section class="card" id="sec-foco">
@@ -437,8 +450,30 @@
     }
     grafico($('#grafico'), serieDe(d), (x) => x.faturamento, (x) => [document.createTextNode(x.nome + ' · '), el('b', '', brl0.format(x.faturamento)), document.createTextNode(' · ' + x.vendas + (x.vendas === 1 ? ' venda' : ' vendas'))]);
     desenharTopo(d, tp);
+    desenharOrigem(d);
     desenharFoco(d);
     desenharAlianca(d, tp);
+  }
+
+  // ---------- Origem das vendas ----------
+  function desenharOrigem(d) {
+    const linhas = (DADOS.dias || []).filter((x) => x.d >= d.de && x.d <= d.ate && x.n);
+    const sec = $('#sec-origem'); sec.hidden = !(DADOS.dias || []).some((x) => x.o);
+    if (sec.hidden) return;
+    const c = {};
+    linhas.forEach((x) => { const o = x.o || 'Sem rastreio', y = c[o] = c[o] || { n: 0, v: 0 }; y.n += x.n; y.v += x.v; });
+    const tot = Object.values(c).reduce((s, y) => s + y.v, 0);
+    const lista = Object.entries(c).sort((a, b) => (a[0] === 'Sem rastreio') - (b[0] === 'Sem rastreio') || b[1].v - a[1].v)
+      .map(([o, y]) => ({ nome: o, v: y.n, nota: brl0.format(y.v) + (tot ? ' · ' + Math.round(100 * y.v / tot) + '%' : '') }));
+    $('#org-canais').replaceChildren(...(lista.length ? etapas(lista) : [el('p', 'vazio', 'Nenhuma venda no período.')]));
+    const cp = {};
+    (DADOS.campanhas || []).filter((x) => x.d >= d.de && x.d <= d.ate).forEach((x) => { const y = cp[x.c] = cp[x.c] || { n: 0, v: 0, p: new Set() }; y.n += x.n; y.v += x.v; y.p.add(x.p); });
+    const rows = Object.entries(cp).sort((a, b) => b[1].v - a[1].v).slice(0, 10).map(([nome, y]) => {
+      const tr = el('tr'), td = el('td', 'tag', nome); td.append(el('small', 'tg', [...y.p].join(' · ')));
+      tr.append(td, el('td', 'n', int.format(y.n)), el('td', 'n', fmtFat(y.v))); return tr;
+    });
+    if (!rows.length) { const tr = el('tr'); const td = el('td', 'vazio', 'Nenhuma venda com campanha de anúncio no período.'); td.colSpan = 3; tr.append(td); rows.push(tr); }
+    $('#org-camp').replaceChildren(...rows);
   }
 
   // ---------- Foco do momento e Aliança ----------

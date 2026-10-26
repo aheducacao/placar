@@ -130,6 +130,22 @@ NAO_LEAD = ("compras", "assinaturas", "cartão recusado", "cartao recusado", "re
             "acompanhamento", "onboarding", "mentorandos", "abandono")
 
 
+def canal(t):
+    """De onde veio a venda, pelo rastreamento da Guru."""
+    o, f = (t.get("origem") or "").strip(), (t.get("fonte") or "").strip()
+    m, c = (t.get("meio") or "").lower(), (t.get("campanha") or "")
+    if m in ("cpc", "paid", "ads", "paid_social", "pago") or (c and "[" in c):
+        return "Anúncios"
+    ol = (o or f).lower()
+    if not ol:
+        return "Sem rastreio"
+    for chave, nome in (("atendimento", "Link do time comercial"), ("whats", "WhatsApp"), ("site", "Site próprio"),
+                        ("mail", "E-mail"), ("insta", "Instagram"), ("face", "Facebook"), ("google", "Google"), ("youtube", "YouTube")):
+        if chave in ol:
+            return nome
+    return o or f
+
+
 def ler(nome, padrao=None):
     f = os.path.join(RAW, nome)
     if not os.path.exists(f):
@@ -166,7 +182,8 @@ def montar():
             continue
         dia = dt.datetime.fromtimestamp(int(t["confirmado"]), TZ).date().isoformat()
         item = {"dia": dia, "produto": produto(t.get("produto")), "valor": num(t.get("valor")),
-                "pagamento": METODO.get(t.get("metodo"), "Outro"), "qtd": int(num(t.get("qtd")) or 1)}
+                "pagamento": METODO.get(t.get("metodo"), "Outro"), "qtd": int(num(t.get("qtd")) or 1),
+                "canal": canal(t), "campanha": (t.get("campanha") or "").strip()}
         if t.get("status") == "approved":
             vend[t["id"]] = item
         elif t.get("status") in ("refunded", "chargedback", "chargeback"):
@@ -265,13 +282,18 @@ def montar():
     # vendas por dia, produto e forma de pagamento (para o período livre na página)
     agg = {}
     for v in vendas:
-        k = (v["dia"], v["produto"], v["pagamento"])
+        k = (v["dia"], v["produto"], v["pagamento"], v["canal"])
         x = agg.setdefault(k, [0, 0.0, 0, 0.0, 0]); x[0] += 1; x[1] += v["valor"]; x[4] += v["qtd"]
     for r in reemb:
-        k = (r["dia"], r["produto"], r["pagamento"])
+        k = (r["dia"], r["produto"], r["pagamento"], r["canal"])
         x = agg.setdefault(k, [0, 0.0, 0, 0.0, 0]); x[2] += 1; x[3] += r["valor"]
-    out["dias"] = [{"d": k[0], "p": k[1], "m": k[2], "n": x[0], "q": x[4], "v": round(x[1], 2), "r": x[2], "rv": round(x[3], 2)}
+    out["dias"] = [{"d": k[0], "p": k[1], "m": k[2], "o": k[3], "n": x[0], "q": x[4], "v": round(x[1], 2), "r": x[2], "rv": round(x[3], 2)}
                    for k, x in sorted(agg.items())]
+    camp = {}
+    for v in vendas:
+        if v["canal"] == "Anúncios" and v["campanha"]:
+            x = camp.setdefault((v["dia"], v["campanha"], v["produto"]), [0, 0.0]); x[0] += 1; x[1] += v["valor"]
+    out["campanhas"] = [{"d": k[0], "c": k[1], "p": k[2], "n": x[0], "v": round(x[1], 2)} for k, x in sorted(camp.items())]
     out["desde"] = min([k[0] for k in agg] or [iv["mes"][0]])
     out["topo"] = topo(iv)
     # série diária do mês
