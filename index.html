@@ -240,12 +240,15 @@
 
       <section class="card" id="sec-origem">
         <h2>De onde vieram as vendas</h2>
-        <p class="sub">Pelo rastreamento da Guru. "Link do time comercial" é o link de checkout que o vendedor manda; "Anúncios" são vendas com campanha (UTM) de tráfego pago; "Sem rastreio" é venda que chegou sem link rastreado.</p>
+        <p class="sub">Pelo rastreamento da Guru. Os links de checkout são agrupados pelo canal (Bio, Manychat, WhatsApp, E-mail) ou pelo vendedor que mandou o link. "Anúncios" são vendas com campanha de tráfego pago; "Sem rastreio" é venda que chegou sem link rastreado.</p>
         <div class="grade">
           <div class="funil"><h3>Por origem</h3><div class="etapas" id="org-canais"></div></div>
           <div class="funil"><h3>Campanhas de anúncio que venderam</h3>
             <div class="tab"><table><thead><tr><th>Campanha</th><th>Vendas</th><th><span class="l">Faturamento</span><span class="c">Fat.</span></th></tr></thead><tbody id="org-camp"></tbody></table></div>
           </div>
+        </div>
+        <div class="funil"><h3>Links que mais venderam</h3>
+          <div class="tab"><table><thead><tr><th>Link de rastreio</th><th>Vendas</th><th><span class="l">Faturamento</span><span class="c">Fat.</span></th></tr></thead><tbody id="org-links"></tbody></table></div>
         </div>
       </section>
 
@@ -474,6 +477,14 @@
     });
     if (!rows.length) { const tr = el('tr'); const td = el('td', 'vazio', 'Nenhuma venda com campanha de anúncio no período.'); td.colSpan = 3; tr.append(td); rows.push(tr); }
     $('#org-camp').replaceChildren(...rows);
+    const lk = {};
+    (DADOS.links || []).filter((x) => x.d >= d.de && x.d <= d.ate).forEach((x) => { const y = lk[x.l] = lk[x.l] || { n: 0, v: 0, o: x.o }; y.n += x.n; y.v += x.v; });
+    const rl = Object.entries(lk).sort((a, b) => b[1].v - a[1].v).slice(0, 10).map(([nome, y]) => {
+      const tr = el('tr'), td = el('td', 'tag', nome); td.append(el('small', 'tg', y.o));
+      tr.append(td, el('td', 'n', int.format(y.n)), el('td', 'n', fmtFat(y.v))); return tr;
+    });
+    if (!rl.length) { const tr = el('tr'); const td = el('td', 'vazio', 'Nenhuma venda por link rastreado no período.'); td.colSpan = 3; tr.append(td); rl.push(tr); }
+    $('#org-links').replaceChildren(...rl);
   }
 
   // ---------- Foco do momento e Aliança ----------

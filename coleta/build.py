@@ -136,14 +136,26 @@ def canal(t):
     m, c = (t.get("meio") or "").lower(), (t.get("campanha") or "")
     if m in ("cpc", "paid", "ads", "paid_social", "pago") or (c and "[" in c):
         return "Anúncios"
-    ol = (o or f).lower()
+    ol = limpa(o or f).lower()
     if not ol:
         return "Sem rastreio"
-    for chave, nome in (("atendimento", "Link do time comercial"), ("whats", "WhatsApp"), ("site", "Site próprio"),
-                        ("mail", "E-mail"), ("insta", "Instagram"), ("face", "Facebook"), ("google", "Google"), ("youtube", "YouTube")):
+    regras = (("manychat", "Manychat"), ("bio", "Bio do Instagram"), ("zap", "WhatsApp (ações)"), ("whats", "WhatsApp (ações)"),
+              ("active", "E-mail (Active)"), ("e-mail", "E-mail (Active)"), ("clint", "Clint (ações)"),
+              ("qr code", "Live / QR code"), ("live", "Live / QR code"), ("menu", "Site próprio"), ("site", "Site próprio"),
+              ("google", "Google"), ("youtube", "YouTube"), ("insta", "Instagram"),
+              ("felipe", "Link do Felipe"), ("lelê", "Link da Letícia"), ("lele", "Link da Letícia"), ("letícia", "Link da Letícia"),
+              ("leticia", "Link da Letícia"), ("leo", "Link do Leo"), ("anderson", "Link do Anderson"),
+              ("atendimento", "Link do time comercial"))
+    for chave, nome in regras:
         if chave in ol:
             return nome
-    return o or f
+    return "Outros links"
+
+
+def limpa(txt):
+    """Conserta acentos que chegam quebrados da Guru (ex.: 'V-\x8dDEOS')."""
+    txt = re.sub(r"-\x8d", "Í", txt or "")
+    return re.sub(r"[\x80-\x9f]", "", txt).strip()
 
 
 def ler(nome, padrao=None):
@@ -183,7 +195,7 @@ def montar():
         dia = dt.datetime.fromtimestamp(int(t["confirmado"]), TZ).date().isoformat()
         item = {"dia": dia, "produto": produto(t.get("produto")), "valor": num(t.get("valor")),
                 "pagamento": METODO.get(t.get("metodo"), "Outro"), "qtd": int(num(t.get("qtd")) or 1),
-                "canal": canal(t), "campanha": (t.get("campanha") or "").strip()}
+                "canal": canal(t), "campanha": limpa(t.get("campanha")), "link": limpa(t.get("origem"))}
         if t.get("status") == "approved":
             vend[t["id"]] = item
         elif t.get("status") in ("refunded", "chargedback", "chargeback"):
@@ -294,6 +306,11 @@ def montar():
         if v["canal"] == "Anúncios" and v["campanha"]:
             x = camp.setdefault((v["dia"], v["campanha"], v["produto"]), [0, 0.0]); x[0] += 1; x[1] += v["valor"]
     out["campanhas"] = [{"d": k[0], "c": k[1], "p": k[2], "n": x[0], "v": round(x[1], 2)} for k, x in sorted(camp.items())]
+    lk = {}
+    for v in vendas:
+        if v["canal"] not in ("Anúncios", "Sem rastreio") and v["link"]:
+            x = lk.setdefault((v["dia"], v["link"], v["canal"]), [0, 0.0]); x[0] += 1; x[1] += v["valor"]
+    out["links"] = [{"d": k[0], "l": k[1], "o": k[2], "n": x[0], "v": round(x[1], 2)} for k, x in sorted(lk.items())]
     out["desde"] = min([k[0] for k in agg] or [iv["mes"][0]])
     out["topo"] = topo(iv)
     # série diária do mês
