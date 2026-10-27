@@ -121,6 +121,7 @@ def baixar(desde="2025-01-01"):
 
 if __name__ == "__main__":
     if sys.argv[1:2] == ["sonda"]:
+        from pyok import garantir; garantir()
         sonda()
     elif sys.argv[1:2] == ["baixar"]:
         baixar()

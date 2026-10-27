@@ -62,11 +62,6 @@ def plano():
                                "DealActivity.meetingRescheduledActivities"], "dimensions": ["Origin.name", "DealActivity.userId"],
                   "filters": [{"member": "Origin.name", "operator": "contains", "values": ["lian"]}],
                   "timeDimensions": [{"dimension": "DealActivity.completedAt", "dateRange": dr}], "limit": 50}), "salvar": f"{p}_reunioes.json", "o_que": "payload.data"},
-            {**q({"measures": ["TrackStatus.changeStatus"], "dimensions": ["TrackStatus.dealId", "Deal.value", "Origin.name", "Contact.email", "Contact.name", "User.name"],
-                  "filters": [{"member": "TrackStatus.category", "operator": "equals", "values": ["DEAL_UPDATE_STATUS"]},
-                              {"member": "TrackStatus.statusLabel", "operator": "equals", "values": ["Ganho"]},
-                              {"member": "Origin.name", "operator": "contains", "values": ["lian"]}],
-                  "timeDimensions": [{"dimension": "TrackStatus.date", "dateRange": dr}], "limit": 500}), "salvar": f"{p}_ganhos_alianca.json", "o_que": "payload.data"},
             {**q({"measures": ["Chat.count"], "dimensions": ["Origin.name"],
                   "filters": atend + [{"member": "Origin.name", "operator": "startsWith", "values": ["Compras aprovadas"]},
                                       {"member": "Deal.createdAt", "operator": "inDateRange", "values": dr}],
@@ -85,6 +80,18 @@ def plano():
     ini_mes = min(dt.date.fromisoformat(iv["mes"][0]), dt.date.fromisoformat(iv["hoje"][0]) - dt.timedelta(days=30))
     corte_utc = f"{ini_mes.isoformat()} 03:00:00"
     janela = min(dt.date.fromisoformat(iv["mes"][0]), dt.date.fromisoformat(iv["hoje"][0]) - dt.timedelta(days=13)).isoformat()
+    # ganhos da Aliança: uma consulta só, por dia, cobrindo todos os períodos. Consultas de períodos curtos
+    # sem ganho voltavam "probe_failed" (zero não verificável); assim o zero de cada período sai do filtro por data.
+    ini_ganhos = min(iv[p][0] for p in PERIODOS)
+    calls += [
+        {"tool": "Clint execute_indicator_query", "args": {"query": {"measures": ["TrackStatus.changeStatus"],
+            "dimensions": ["TrackStatus.dealId", "Deal.value", "Origin.name", "Contact.email", "Contact.name", "User.name"],
+            "filters": [{"member": "TrackStatus.category", "operator": "equals", "values": ["DEAL_UPDATE_STATUS"]},
+                        {"member": "TrackStatus.statusLabel", "operator": "equals", "values": ["Ganho"]},
+                        {"member": "Origin.name", "operator": "contains", "values": ["lian"]}],
+            "timeDimensions": [{"dimension": "TrackStatus.date", "granularity": "day", "dateRange": [ini_ganhos, iv["hoje"][1]]}],
+            "limit": 500, "timezone": "America/Sao_Paulo"}}, "salvar": "ganhos_alianca.json", "o_que": "payload.data"},
+    ]
     calls += [
         {"tool": "Clint execute_indicator_query", "args": {"query": {"measures": ["Deal.count"], "dimensions": ["Contact.email", "Origin.name"],
             "timeDimensions": [{"dimension": "Deal.createdAt", "granularity": "day", "dateRange": [janela, iv["hoje"][1]]}],
@@ -258,7 +265,7 @@ def montar():
         produtos = sorted(por_prod.values(), key=lambda x: (x["produto"] not in FOCO + ["Aliança"], -x["faturamento"], -x["leads"], x["produto"]))
         for x in produtos:
             x["faturamento"] = round(x["faturamento"], 2)
-        foco, ali = funis(p, por_prod)
+        foco, ali = funis(p, por_prod, iv[p])
         # Aliança é vendida fora da Guru: a linha dela usa os negócios ganhos na Clint
         extra_ali = 0.0
         x = por_prod.get("Aliança")
@@ -352,7 +359,7 @@ def mentoria():
     return _MENTORIA[0]
 
 
-def funis(p, por_prod):
+def funis(p, por_prod, faixa=None):
     """Funil dos produtos em foco e da Aliança, a partir das entradas, mudanças de etapa e atividades da Clint."""
     f = {pn: {"produto": pn, "leads": 0, "atendidos": 0, "responderam": 0, "aguardando": 0, "checkout": 0,
               "vendas": 0, "cadeiras": 0, "faturamento": 0.0} for pn in FOCO}
@@ -406,7 +413,14 @@ def funis(p, por_prod):
         a["no_show"] += int(num(r.get("DealActivity.noShowActivities")))
     vistos, cad, dono = {}, {}, {}
     mapa = mentoria()
-    for r in ler(f"{p}_ganhos_alianca.json", []) or []:
+    a_, b_ = faixa or intervalos()[p]
+    ganhos = ler("ganhos_alianca.json", None)
+    if ganhos is None:  # formato antigo: um arquivo por período
+        ganhos = [dict(r, **{"TrackStatus.date.day": a_}) for r in (ler(f"{p}_ganhos_alianca.json", []) or [])]
+    for r in ganhos or []:
+        dia = (r.get("TrackStatus.date.day") or r.get("TrackStatus.date") or "")[:10]
+        if not (a_ <= dia <= b_):
+            continue
         if r.get("TrackStatus.dealId"):
             vistos[r["TrackStatus.dealId"]] = num(r.get("Deal.value")) / 100
             n = None
@@ -495,6 +509,7 @@ if __name__ == "__main__":
     if cmd == "plano":
         plano()
     elif cmd == "montar":
+        from pyok import garantir; garantir()
         chave = os.environ.get("PLACAR_CHAVE")
         if not chave:
             sys.exit("Falta PLACAR_CHAVE (login:senha).")
@@ -505,6 +520,7 @@ if __name__ == "__main__":
             print(json.dumps(dados, ensure_ascii=False, indent=1))
         print("ok", dados["atualizado"])
     elif cmd in ("cifrar", "decifrar") and len(sys.argv) == 4:
+        from pyok import garantir; garantir()
         chave = os.environ.get("PLACAR_CHAVE") or sys.exit("Falta PLACAR_CHAVE (login:senha).")
         with open(sys.argv[2]) as h:
             obj = json.load(h)

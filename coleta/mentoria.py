@@ -55,4 +55,5 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(__doc__)
     else:
+        from pyok import garantir; garantir()
         main(sys.argv[1])

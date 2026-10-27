@@ -162,6 +162,7 @@ def baixar():
 
 if __name__ == "__main__":
     if sys.argv[1:2] == ["baixar"]:
+        from pyok import garantir; garantir()
         baixar()
     else:
         print(__doc__)
