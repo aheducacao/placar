@@ -111,6 +111,8 @@ def produto(nome, clint=False):
         return "Formação de Vendedor"  # leads da imersão de marketing foram para a Formação
     if "gestão de pessoas" in n or "gestao de pessoas" in n:
         return "Imersão Gestão de Pessoas"
+    if "planejamento" in n and "2027" in n:
+        return "Planejamento Estratégico 2027"
     if "alian" in n:
         return "Aliança"
     if "caixa preta" in n:
