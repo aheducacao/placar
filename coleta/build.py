@@ -49,7 +49,7 @@ def plano():
             {**q({"measures": ["ChatResponseInterval.count", "ChatResponseInterval.medianResponseTime"], "dimensions": ["User.name"],
                   "filters": [{"member": "User.name", "operator": "contains", "values": ["Felipe", "Souza"]}],
                   "timeDimensions": [{"dimension": "ChatResponseInterval.repliedAt", "dateRange": dr}]}), "salvar": f"{p}_tempo.json", "o_que": "payload.data"},
-            {**q({"measures": ["Chat.count"], "dimensions": ["Origin.name"], "filters": atend,
+            {**q({"measures": ["Chat.count"], "dimensions": ["Origin.name", "OriginGroup.name"], "filters": atend,
                   "timeDimensions": [{"dimension": "Message.createdAt", "dateRange": dr}], "limit": 300}), "salvar": f"{p}_atendidos.json", "o_que": "payload.data"},
             {**q({"measures": ["Chat.count"], "dimensions": ["Origin.name"],
                   "filters": atend + [{"member": "Origin.name", "operator": "startsWith", "values": ["Compras aprovadas"]},
@@ -74,12 +74,12 @@ def plano():
     qd = lambda body, nome: {"tool": "Clint execute_indicator_query", "args": {"query": {**body, "timezone": "America/Sao_Paulo"}},
                              "salvar": nome, "o_que": "payload.data"}
     calls += [
-        qd({"measures": ["Deal.count"], "dimensions": ["Origin.name"],
+        qd({"measures": ["Deal.count"], "dimensions": ["Origin.name", "OriginGroup.name"],
             "timeDimensions": [{"dimension": "Deal.createdAt", "granularity": "day", "dateRange": dd}], "limit": 3000}, "entradas.json"),
         qd({"measures": ["DealActivity.count"], "dimensions": ["DealActivity.userId", "DealActivity.activity_type_label"],
             "filters": [{"member": "DealActivity.userId", "operator": "equals", "values": ids}],
             "timeDimensions": [{"dimension": "DealActivity.completedAt", "granularity": "day", "dateRange": dd}], "limit": 2000}, "atividades.json"),
-        qd({"measures": ["TrackStage.changeStage"], "dimensions": ["Origin.name", "TrackStage.stage"],
+        qd({"measures": ["TrackStage.changeStage"], "dimensions": ["Origin.name", "OriginGroup.name", "TrackStage.stage"],
             "timeDimensions": [{"dimension": "TrackStage.date", "granularity": "day", "dateRange": dd}], "limit": 5000}, "etapas.json"),
         qd({"measures": ["DealActivity.meetingScheduledActivities", "DealActivity.meetingActivities", "DealActivity.noShowActivities",
                          "DealActivity.meetingRescheduledActivities"], "dimensions": ["Origin.name", "DealActivity.userId"],
@@ -170,6 +170,13 @@ def limpa(txt):
     return re.sub(r"[\x80-\x9f]", "", txt).strip()
 
 
+def funil(r):
+    """Nome do funil; quando é genérico ("Lista Geral"), junta o nome do grupo para saber o produto."""
+    o = (r.get("Origin.name") or "").strip()
+    g = (r.get("OriginGroup.name") or "").strip()
+    return f"{o} ({g})" if g and o.lower() == "lista geral" else o
+
+
 _IV = []
 
 
@@ -246,12 +253,12 @@ def montar():
         for v in vs:
             l = linha(v["produto"]); l["vendas"] += 1; l["cadeiras"] += v["qtd"]; l["faturamento"] += v["valor"]
         for r in lerp("entradas", p):
-            nome = (r.get("Origin.name") or "")
+            nome = funil(r)
             if not nome or nome.lower().startswith(NAO_LEAD):
                 continue
             linha(produto(nome, True))["leads"] += int(num(r.get("Deal.count")))
         for r in ler(f"{p}_atendidos.json", []) or []:
-            nome = r.get("Origin.name") or ""
+            nome = funil(r)
             if not nome or nome.lower().startswith(NAO_LEAD):
                 continue
             linha(produto(nome, True))["atendidos"] += int(num(r.get("Chat.count")))
@@ -393,7 +400,7 @@ def funis(p, por_prod, faixa=None):
         for k in ("leads", "atendidos", "vendas", "cadeiras", "faturamento"):
             f[pn][k] = x.get(k, 0)
     for r in lerp("entradas", p):
-        nome = (r.get("Origin.name") or "").lower()
+        nome = funil(r).lower()
         pn = produto(nome, True)
         if pn in f and nome.startswith(CHECKOUT):
             f[pn]["checkout"] += int(num(r.get("Deal.count")))
@@ -403,7 +410,7 @@ def funis(p, por_prod, faixa=None):
     x = por_prod.get("Aliança") or {}
     a["inscricoes"], a["atendidos"] = x.get("leads", 0), x.get("atendidos", 0)
     for r in lerp("etapas", p):
-        org = (r.get("Origin.name") or "").lower()
+        org = funil(r).lower()
         st = (r.get("TrackStage.stage") or "").strip().lower()
         n = int(num(r.get("TrackStage.changeStage")))
         if not org or not st or org.startswith(NAO_LEAD):
