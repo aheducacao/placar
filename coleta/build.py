@@ -51,17 +51,6 @@ def plano():
                   "timeDimensions": [{"dimension": "ChatResponseInterval.repliedAt", "dateRange": dr}]}), "salvar": f"{p}_tempo.json", "o_que": "payload.data"},
             {**q({"measures": ["Chat.count"], "dimensions": ["Origin.name"], "filters": atend,
                   "timeDimensions": [{"dimension": "Message.createdAt", "dateRange": dr}], "limit": 300}), "salvar": f"{p}_atendidos.json", "o_que": "payload.data"},
-            {**q({"measures": ["Deal.count"], "dimensions": ["Origin.name"],
-                  "timeDimensions": [{"dimension": "Deal.createdAt", "dateRange": dr}], "limit": 300}), "salvar": f"{p}_entradas.json", "o_que": "payload.data"},
-            {**q({"measures": ["DealActivity.count"], "dimensions": ["DealActivity.userId", "DealActivity.activity_type_label"],
-                  "filters": [{"member": "DealActivity.userId", "operator": "equals", "values": ids}],
-                  "timeDimensions": [{"dimension": "DealActivity.completedAt", "dateRange": dr}]}), "salvar": f"{p}_atividades.json", "o_que": "payload.data"},
-            {**q({"measures": ["TrackStage.changeStage"], "dimensions": ["Origin.name", "TrackStage.stage"],
-                  "timeDimensions": [{"dimension": "TrackStage.date", "dateRange": dr}], "limit": 1000}), "salvar": f"{p}_etapas.json", "o_que": "payload.data"},
-            {**q({"measures": ["DealActivity.meetingScheduledActivities", "DealActivity.meetingActivities", "DealActivity.noShowActivities",
-                               "DealActivity.meetingRescheduledActivities"], "dimensions": ["Origin.name", "DealActivity.userId"],
-                  "filters": [{"member": "Origin.name", "operator": "contains", "values": ["lian"]}],
-                  "timeDimensions": [{"dimension": "DealActivity.completedAt", "dateRange": dr}], "limit": 50}), "salvar": f"{p}_reunioes.json", "o_que": "payload.data"},
             {**q({"measures": ["Chat.count"], "dimensions": ["Origin.name"],
                   "filters": atend + [{"member": "Origin.name", "operator": "startsWith", "values": ["Compras aprovadas"]},
                                       {"member": "Deal.createdAt", "operator": "inDateRange", "values": dr}],
@@ -70,9 +59,6 @@ def plano():
             {**q({"measures": ["Chat.count"], "dimensions": ["User.name"],
                   "filters": atend + [{"member": "Origin.name", "operator": "contains", "values": ["lian"]}],
                   "timeDimensions": [{"dimension": "Message.createdAt", "dateRange": dr}], "limit": 20}), "salvar": f"{p}_ali_conversas.json", "o_que": "payload.data"},
-            {"tool": "ActiveCampaign list_contacts", "args": {"params": {"filters": {"created_after": f"{a}T00:00:00-03:00",
-                 "created_before": f"{(dt.date.fromisoformat(b) + dt.timedelta(days=1)).isoformat()}T00:00:00-03:00"}, "limit": 1}},
-             "salvar": f"{p}_leads.json", "o_que": "{\"total\": meta.total}"},
             {"tool": "ActiveCampaign run_campaign_performance_report", "args": {"params": {"module": "campaigns", "explore": "all_campaigns_performance",
                  "columns": ["campaign_name", "total_sends"], "params": {"view_distinct_campaigns_event_date_start": a, "view_distinct_campaigns_event_date_end": b}, "limit": 1}},
              "salvar": f"{p}_emails.json", "o_que": "summaryData (objeto inteiro)"},
@@ -83,6 +69,23 @@ def plano():
     # ganhos da Aliança: uma consulta só, por dia, cobrindo todos os períodos. Consultas de períodos curtos
     # sem ganho voltavam "probe_failed" (zero não verificável); assim o zero de cada período sai do filtro por data.
     ini_ganhos = min(iv[p][0] for p in PERIODOS)
+    # consultas que somam: uma só, dia a dia, cobrindo todos os períodos (o código separa hoje/ontem/7d/semana/mês)
+    dd = [ini_ganhos, iv["hoje"][1]]
+    qd = lambda body, nome: {"tool": "Clint execute_indicator_query", "args": {"query": {**body, "timezone": "America/Sao_Paulo"}},
+                             "salvar": nome, "o_que": "payload.data"}
+    calls += [
+        qd({"measures": ["Deal.count"], "dimensions": ["Origin.name"],
+            "timeDimensions": [{"dimension": "Deal.createdAt", "granularity": "day", "dateRange": dd}], "limit": 3000}, "entradas.json"),
+        qd({"measures": ["DealActivity.count"], "dimensions": ["DealActivity.userId", "DealActivity.activity_type_label"],
+            "filters": [{"member": "DealActivity.userId", "operator": "equals", "values": ids}],
+            "timeDimensions": [{"dimension": "DealActivity.completedAt", "granularity": "day", "dateRange": dd}], "limit": 2000}, "atividades.json"),
+        qd({"measures": ["TrackStage.changeStage"], "dimensions": ["Origin.name", "TrackStage.stage"],
+            "timeDimensions": [{"dimension": "TrackStage.date", "granularity": "day", "dateRange": dd}], "limit": 5000}, "etapas.json"),
+        qd({"measures": ["DealActivity.meetingScheduledActivities", "DealActivity.meetingActivities", "DealActivity.noShowActivities",
+                         "DealActivity.meetingRescheduledActivities"], "dimensions": ["Origin.name", "DealActivity.userId"],
+            "filters": [{"member": "Origin.name", "operator": "contains", "values": ["lian"]}],
+            "timeDimensions": [{"dimension": "DealActivity.completedAt", "granularity": "day", "dateRange": dd}], "limit": 1000}, "reunioes.json"),
+    ]
     calls += [
         {"tool": "Clint execute_indicator_query", "args": {"query": {"measures": ["TrackStatus.changeStatus"],
             "dimensions": ["TrackStatus.dealId", "Deal.value", "Origin.name", "Contact.email", "Contact.name", "User.name"],
@@ -167,6 +170,26 @@ def limpa(txt):
     return re.sub(r"[\x80-\x9f]", "", txt).strip()
 
 
+_IV = []
+
+
+def lerp(base, p):
+    """Linhas de uma consulta dia a dia (base.json) só dos dias do período p.
+    Se ainda não existir o arquivo dia a dia, usa o antigo por período (p_base.json)."""
+    dias = ler(f"{base}.json", None)
+    if dias is None:
+        return ler(f"{p}_{base}.json", []) or []
+    if not _IV:
+        _IV.append(intervalos())
+    a, b = _IV[0][p]
+    out = []
+    for r in dias or []:
+        d = next((str(v)[:10] for k, v in r.items() if k.endswith(".day")), "")
+        if a <= d <= b:
+            out.append(r)
+    return out
+
+
 def ler(nome, padrao=None):
     f = os.path.join(RAW, nome)
     if not os.path.exists(f):
@@ -222,7 +245,7 @@ def montar():
             return por_prod.setdefault(pn, {"produto": pn, "leads": 0, "atendidos": 0, "vendas": 0, "cadeiras": 0, "faturamento": 0.0})
         for v in vs:
             l = linha(v["produto"]); l["vendas"] += 1; l["cadeiras"] += v["qtd"]; l["faturamento"] += v["valor"]
-        for r in ler(f"{p}_entradas.json", []) or []:
+        for r in lerp("entradas", p):
             nome = (r.get("Origin.name") or "")
             if not nome or nome.lower().startswith(NAO_LEAD):
                 continue
@@ -245,7 +268,7 @@ def montar():
         tp = {quem(r.get("User.name")): r for r in (ler(f"{p}_tempo.json", []) or [])}
         equipe = []
         for uid, nome, _ in VENDEDORES:
-            at = [r for r in (ler(f"{p}_atividades.json", []) or []) if r.get("DealActivity.userId") == uid]
+            at = [r for r in (lerp("atividades", p)) if r.get("DealActivity.userId") == uid]
             f = fila.get(nome) or {}
             med = (tp.get(nome) or {}).get("ChatResponseInterval.medianResponseTime")
             equipe.append({
@@ -369,7 +392,7 @@ def funis(p, por_prod, faixa=None):
         x = por_prod.get(pn) or {}
         for k in ("leads", "atendidos", "vendas", "cadeiras", "faturamento"):
             f[pn][k] = x.get(k, 0)
-    for r in ler(f"{p}_entradas.json", []) or []:
+    for r in lerp("entradas", p):
         nome = (r.get("Origin.name") or "").lower()
         pn = produto(nome, True)
         if pn in f and nome.startswith(CHECKOUT):
@@ -379,7 +402,7 @@ def funis(p, por_prod, faixa=None):
          "vendas": 0, "valor": 0.0, "sem_valor": 0}
     x = por_prod.get("Aliança") or {}
     a["inscricoes"], a["atendidos"] = x.get("leads", 0), x.get("atendidos", 0)
-    for r in ler(f"{p}_etapas.json", []) or []:
+    for r in lerp("etapas", p):
         org = (r.get("Origin.name") or "").lower()
         st = (r.get("TrackStage.stage") or "").strip().lower()
         n = int(num(r.get("TrackStage.changeStage")))
@@ -403,7 +426,7 @@ def funis(p, por_prod, faixa=None):
         q_ = quem(r.get("User.name"))
         if q_:
             vend[q_]["conversas"] += int(num(r.get("Chat.count")))
-    for r in ler(f"{p}_reunioes.json", []) or []:
+    for r in lerp("reunioes", p):
         q_ = quem(r.get("DealActivity.userId"))
         if q_:
             vend[q_]["agendamentos"] += int(num(r.get("DealActivity.meetingScheduledActivities")))
