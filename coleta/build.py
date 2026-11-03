@@ -114,7 +114,7 @@ def produto(nome, clint=False):
         return "Formação de Vendedor"  # leads da imersão de marketing foram para a Formação
     if "gestão de pessoas" in n or "gestao de pessoas" in n:
         return "Imersão Gestão de Pessoas"
-    if "planejamento" in n and "2027" in n:
+    if "planejamento estrat" in n or ("planejamento" in n and "2027" in n):
         return "Planejamento Estratégico 2027"
     if "alian" in n:
         return "Aliança"
@@ -168,6 +168,13 @@ def limpa(txt):
     """Conserta acentos que chegam quebrados da Guru (ex.: 'V-\x8dDEOS')."""
     txt = re.sub(r"-\x8d", "Í", txt or "")
     return re.sub(r"[\x80-\x9f]", "", txt).strip()
+
+
+IMPORTACAO = 100  # um funil que recebe 100+ negócios num dia só é importação de lista, não lead novo
+
+
+def importacao(r):
+    return num(r.get("Deal.count")) >= IMPORTACAO
 
 
 def funil(r):
@@ -254,7 +261,7 @@ def montar():
             l = linha(v["produto"]); l["vendas"] += 1; l["cadeiras"] += v["qtd"]; l["faturamento"] += v["valor"]
         for r in lerp("entradas", p):
             nome = funil(r)
-            if not nome or nome.lower().startswith(NAO_LEAD):
+            if not nome or nome.lower().startswith(NAO_LEAD) or importacao(r):
                 continue
             linha(produto(nome, True))["leads"] += int(num(r.get("Deal.count")))
         for r in ler(f"{p}_atendidos.json", []) or []:
@@ -402,7 +409,7 @@ def funis(p, por_prod, faixa=None):
     for r in lerp("entradas", p):
         nome = funil(r).lower()
         pn = produto(nome, True)
-        if pn in f and nome.startswith(CHECKOUT):
+        if pn in f and nome.startswith(CHECKOUT) and not importacao(r):
             f[pn]["checkout"] += int(num(r.get("Deal.count")))
     a = {"inscricoes": 0, "atendidos": 0, "formulario": 0, "qualificados": 0, "agendadas_etapa": 0, "no_show_etapa": 0,
          "negociacao": 0, "nao_avancou": 0, "agendamentos": 0, "reagendamentos": 0, "realizadas": 0, "no_show": 0,
