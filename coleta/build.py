@@ -136,7 +136,7 @@ def produto(nome, clint=False):
 
 
 ONLINE = {"AH Club", "AH Summit Palestras"}  # produtos online não têm cadeira
-FOCO = ["AH Gestão", "Formação de Vendedor", "AH Club", "AH Summit Palestras"]
+FOCO = ["Planejamento Estratégico 2027", "AH Gestão", "Formação de Vendedor", "AH Club", "AH Summit Palestras"]
 CHECKOUT = ("abandono", "compras em aberto", "cartão recusado", "cartao recusado", "compras expiradas")
 NAO_LEAD = ("compras", "assinaturas", "cartão recusado", "cartao recusado", "reembolso", "participantes",
             "acompanhamento", "onboarding", "mentorandos", "abandono")
