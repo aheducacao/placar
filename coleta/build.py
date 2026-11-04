@@ -504,10 +504,17 @@ def topo(iv):
     # passagem para o comercial: quem ganhou tag no período e tem negócio de lead criado na Clint no período
     emails = {int(k): v for k, v in (ac.get("emails") or {}).items()}
     clint = {}
+    # dia + funil que foram importação de lista (100+ negócios num dia) não contam como passagem
+    imp = set()
+    for r in ler("entradas.json", []) or []:
+        if importacao(r):
+            imp.add((str(r.get("Deal.createdAt.day") or r.get("Deal.createdAt") or "")[:10], (r.get("Origin.name") or "").strip().lower()))
     for r in ler("clint_emails.json", []) or []:
         em = (r.get("Contact.email") or "").strip().lower()
         org = (r.get("Origin.name") or "").lower()
         d = (r.get("Deal.createdAt.day") or r.get("Deal.createdAt") or "")[:10]
+        if (d, org.strip()) in imp:
+            continue
         if em and d and not org.startswith(NAO_LEAD):
             clint.setdefault(em, set()).add(d)
     passagem = {}
