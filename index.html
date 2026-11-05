@@ -323,13 +323,14 @@
   const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   const LS = 'placar-ah-chave';
   const FORMA = { 'Cartão de Crédito': 'Cartão', 'Pix': 'Pix', 'Boleto': 'Boleto' };
-  let DADOS = null, P = 'hoje';
+  let DADOS = null, P = 'hoje', CHAVE = null, ULT = null;
 
   const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
   async function abrir(chave) {
     const r = await fetch('data.enc.json?t=' + Date.now(), { cache: 'no-store' });
     if (!r.ok) throw new Error('Não consegui carregar os dados agora. Tente de novo em instantes.');
     const e = await r.json();
+    ULT = e.iv + e.dados.length;
     const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(chave), 'PBKDF2', false, ['deriveKey']);
     const k = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: b64(e.sal), iterations: e.it, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
     let txt;
@@ -342,14 +343,31 @@
   function esquecer() { try { localStorage.removeItem(LS); } catch (_) {} }
 
   async function entrar(chave, lembrar) {
-    DADOS = await abrir(chave);
+    DADOS = await abrir(chave); CHAVE = chave;
     if (lembrar) guardar(chave);
     $('#tela-login').hidden = true; $('#painel').hidden = false;
     const ini = DADOS.desde || DADOS.periodos.mes.de, fim = DADOS.periodos.hoje.ate;
     ['#de', '#ate'].forEach((s) => { $(s).min = ini; $(s).max = fim; });
     $('#de').value = DADOS.periodos.mes.de; $('#ate').value = fim;
     desenhar();
+    setInterval(atualizar, 30000);
   }
+
+  // atualização automática: a cada 30s confere se há dados novos e redesenha sem recarregar
+  async function atualizar() {
+    if (!CHAVE || document.hidden) return;
+    try {
+      const antes = ULT, de = $('#de').value, ate = $('#ate').value;
+      const novo = await abrir(CHAVE);
+      if (ULT === antes) return;
+      DADOS = novo;
+      const fim = DADOS.periodos.hoje.ate;
+      ['#de', '#ate'].forEach((s) => { $(s).min = DADOS.desde || DADOS.periodos.mes.de; $(s).max = fim; });
+      $('#de').value = de; $('#ate').value = ate;
+      desenhar();
+    } catch (_) {}
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) atualizar(); });
 
   $('#form-login').addEventListener('submit', async (ev) => {
     ev.preventDefault();
