@@ -17,17 +17,19 @@ TZ = ZoneInfo("America/Sao_Paulo")
 FELIPE = "d1c2f9ae-9d66-4e42-a83d-3755a21add0b"
 LETICIA = "2c70a62f-7002-4874-a6f2-19cbefca53e3"
 VENDEDORES = [(FELIPE, "Felipe", "felipe"), (LETICIA, "Letícia", "souza")]
-PERIODOS = ["hoje", "ontem", "7d", "semana", "mes"]
-ROTULO = {"hoje": "Hoje", "ontem": "Ontem", "7d": "Últimos 7 dias", "semana": "Semana passada", "mes": "Este mês"}
+PERIODOS = ["hoje", "ontem", "7d", "semana_atual", "semana", "mes"]
+ROTULO = {"hoje": "Hoje", "ontem": "Ontem", "7d": "Últimos 7 dias", "semana_atual": "Esta semana", "semana": "Semana passada", "mes": "Este mês"}
 
 
 def intervalos(agora=None):
     hoje = (agora or dt.datetime.now(TZ)).date()
+    dom = (hoje.weekday() + 1) % 7  # dias desde o último domingo: a semana vai de domingo a sábado
     r = {
         "hoje": (hoje, hoje),
         "ontem": (hoje - dt.timedelta(days=1), hoje - dt.timedelta(days=1)),
         "7d": (hoje - dt.timedelta(days=6), hoje),
-        "semana": (hoje - dt.timedelta(days=hoje.weekday() + 7), hoje - dt.timedelta(days=hoje.weekday() + 1)),
+        "semana_atual": (hoje - dt.timedelta(days=dom), hoje),
+        "semana": (hoje - dt.timedelta(days=dom + 7), hoje - dt.timedelta(days=dom + 1)),
         "mes": (hoje.replace(day=1), hoje),
     }
     return {k: (a.isoformat(), b.isoformat()) for k, (a, b) in r.items()}
